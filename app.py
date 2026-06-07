@@ -385,6 +385,7 @@ _client_name = st.sidebar.text_input(
 )
 _display_name = f"{_salutation} {_client_name.strip()}" if _client_name.strip() else ""
 
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Portfolio**")
 num_stocks = st.sidebar.number_input(
