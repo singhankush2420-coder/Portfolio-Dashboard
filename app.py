@@ -339,31 +339,8 @@ hr { border-color: rgba(255,255,255,0.05) !important; }
 </style>
 """, unsafe_allow_html=True)
 
-## ── Default display name — overwritten in sidebar after user input ─────────────
-_display_name = ""
-
-## ── Top bar ───────────────────────────────────────────────────────────────────
+## ── Top bar rendered AFTER sidebar (so _display_name is available) ───────────
 _top_left, _top_right = st.columns([4, 1])
-with _top_left:
-    _greeting_html = (
-        f' &nbsp;|&nbsp; <span style="color:#F3F6FA;font-weight:600">'
-        f'Welcome, <span style="color:#C8A951">{_display_name}</span></span>'
-        if _display_name else ""
-    )
-    st.markdown(f"""
-<div class="top-bar">
-  <div class="top-bar-title">
-    <span style="color:#C8A951">&#9632;</span>
-    PortfolioIQ: Risk, Performance & Attribution{_greeting_html}
-  </div>
-  <div class="top-bar-sub">
-    "Understanding downside risk to build stronger portfolio returns"
-  </div>
-</div>
-<div style="margin-bottom:8px"></div>
-""", unsafe_allow_html=True)
-with _top_right:
-    _pdf_placeholder = st.empty()
 
 ## ─────────────────────────────────────────────────────────────────────────────
 ##  SIDEBAR
@@ -384,6 +361,27 @@ _client_name = st.sidebar.text_input(
     "Your Name", placeholder="e.g. User Name", max_chars=50
 )
 _display_name = f"{_salutation} {_client_name.strip()}" if _client_name.strip() else ""
+
+## ── Top bar — rendered here so _display_name is already known ────────────────
+_greeting_html = (
+    f' &nbsp;|&nbsp; <span style="color:#F3F6FA;font-weight:600">'
+    f'Welcome, <span style="color:#C8A951">{_display_name}</span></span>'
+    if _display_name else ""
+)
+with _top_left:
+    st.markdown(f"""
+<div class="top-bar">
+  <div class="top-bar-title">
+    <span style="color:#C8A951">&#9632;</span>
+    PortfolioIQ: Risk, Performance & Attribution{_greeting_html}
+  </div>
+  <div class="top-bar-sub">
+    "Understanding downside risk to build stronger portfolio returns"
+  </div>
+</div>
+<div style="margin-bottom:8px"></div>
+""", unsafe_allow_html=True)
+_pdf_placeholder = st.empty()
 
 
 st.sidebar.markdown("---")
