@@ -1,0 +1,15 @@
+[server]
+headless = true
+enableCORS = false
+port = 8501
+
+[theme]
+base = "dark"
+primaryColor = "#C8A951"
+backgroundColor = "#081018"
+secondaryBackgroundColor = "#0D1723"
+textColor = "#F3F6FA"
+font = "inter"
+
+[ui]
+hideSidebarNav = false
