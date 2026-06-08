@@ -470,6 +470,293 @@ _KNOWN_MIDCAP_TICKERS = {
     "VOLTAS","ZOMATO","PAYTM","NYKAA","IRCTC","IRFC","RVNL",
 }
 
+## ── ETF Framework — Tiered Classification ────────────────────────────────────
+## Tier 1: Sector ETFs  → direct sector index benchmark
+## Tier 2: Broad Market → benchmark itself (near-zero active contribution)
+## Tier 3: Thematic     → Nifty 500 proxy with methodology note
+## Tier 4: Unknown      → excluded from BHB, user notified
+##
+## benchmark_weight is NOT hardcoded here — it is fetched dynamically
+## from NIFTY_SECTOR_WEIGHTS at runtime so it stays current
+## ─────────────────────────────────────────────────────────────────────────────
+
+## Tier 1 — Sector ETFs: keyword → (sector_label, attribution_benchmark_ticker)
+ETF_SECTOR_MAP = {
+    ## Banking / Financial
+    "bank":           ("Financial Services",  "^NSEBANK"),
+    "banking":        ("Financial Services",  "^NSEBANK"),
+    "nsebank":        ("Financial Services",  "^NSEBANK"),
+    "financial":      ("Financial Services",  "^NSEBANK"),
+    ## Technology / IT
+    "it ":            ("Technology",          "^CNXIT"),
+    " it":            ("Technology",          "^CNXIT"),
+    "nifty it":       ("Technology",          "^CNXIT"),
+    "infotech":       ("Technology",          "^CNXIT"),
+    "information tech":("Technology",         "^CNXIT"),
+    "tech etf":       ("Technology",          "^CNXIT"),
+    ## Pharma / Healthcare
+    "pharma":         ("Healthcare",          "^CNXPHARMA"),
+    "healthcare":     ("Healthcare",          "^CNXPHARMA"),
+    "health care":    ("Healthcare",          "^CNXPHARMA"),
+    ## Auto / Consumer Cyclical
+    "auto":           ("Consumer Cyclical",   "^CNXAUTO"),
+    "automobile":     ("Consumer Cyclical",   "^CNXAUTO"),
+    ## FMCG / Consumer Defensive
+    "fmcg":           ("Consumer Defensive",  "^CNXFMCG"),
+    ## Energy
+    "energy":         ("Energy",              "^CNXENERGY"),
+    "oil":            ("Energy",              "^CNXENERGY"),
+    ## Metal / Mining
+    "metal":          ("Basic Materials",     "^CNXMETAL"),
+    "mining":         ("Basic Materials",     "^CNXMETAL"),
+    ## Realty
+    "realt":          ("Real Estate",         "^CNXREALTY"),
+    ## Infrastructure
+    "infra":          ("Industrials",         "^CNXINFRA"),
+    "infrastructure": ("Industrials",         "^CNXINFRA"),
+}
+
+## Tier 2 — Broad Market ETFs: keyword list (active contribution ≈ zero)
+ETF_BROAD_MARKET_KEYWORDS = [
+    ## Nifty 50 variants — SPECIFIC only, not generic 'nifty'
+    "nifty 50 ", "nifty50", "nifty bees", "niftybees",
+    "n50", "nif50",
+    ## Nifty 100 / Next 50 / Nifty 500
+    "nifty 100", "nifty100", "nifty next 50", "niftynext",
+    "nifty 500", "nifty500",
+    ## Sensex / BSE broad
+    "sensex", "bse 500", "bse500",
+    ## Generic Nifty ETF names — "HDFC Nifty ETF", "Kotak Nifty ETF"
+    ## NOTE: "nifty etf" must NOT match "nifty it etf" or "nifty auto etf"
+    ## So we keep it specific
+    "nifty etf",
+]
+
+## Tier 3 — Thematic ETFs: keyword → (theme_label, proxy_benchmark)
+## Proxy = Nifty 500 (broadest available on Yahoo Finance)
+## Label shown to user: "Nifty 500 (Proxy)" — transparent about limitation
+ETF_THEMATIC_MAP = {
+    "defence":     ("Defence & Aerospace",   "^CRSLDX"),
+    "defense":     ("Defence & Aerospace",   "^CRSLDX"),
+    "psu":         ("PSU Theme",             "^CNXPSE"),
+    "public sector":("PSU Theme",            "^CNXPSE"),
+    "manufactur":  ("Manufacturing",         "^CRSLDX"),
+    "mobility":    ("Mobility / EV",         "^CRSLDX"),
+    "ev ":         ("EV / Clean Energy",     "^CRSLDX"),
+    "electric":    ("EV / Clean Energy",     "^CRSLDX"),
+    "midcap":      ("Mid Cap",               "^NSEMDCP150"),
+    "mid cap":     ("Mid Cap",               "^NSEMDCP150"),
+    "smallcap":    ("Small Cap",             "^CRSLDX"),
+    "small cap":   ("Small Cap",             "^CRSLDX"),
+    ## PSU / CPSE
+    "cpse":        ("PSU Theme",             "^CNXPSE"),
+    "bharat 22":   ("PSU Theme",             "^CNXPSE"),
+    ## Infra / Bharat Bond
+    "infrabees":   ("Industrials",           "^CNXINFRA"),
+}
+
+## Tier 4 — Non-equity ETFs: these are EXCLUDED from BHB
+## No equity sector benchmark makes sense for them
+ETF_EXCLUDE_KEYWORDS = [
+    "gold", "silver", "commodity", "liquid", "overnight",
+    "money market", "bond", "gilt", "debt", "bharat bond",
+    "nasdaq", "s&p 500", "s&p500", "hangseng", "hang seng",
+    "global", "international", "world", "us equity",
+    "nyse", "fang", "us tech", "china", "taiwan",
+    "japan", "europe", "emerging market", "mirae asset nyse",
+]
+
+## Manual overrides — known ETFs where name-matching might fail
+ETF_DEFINITIONS = {
+    ## ── Defence ETFs (Tier 3 Thematic) ──────────────────────────────────────
+    "GROWWDEFNC.NS": {
+        "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
+        "is_etf": True, "tracks": "Nifty India Defence Index",
+        "etf_tier": 3, "attribution_bm": "^CRSLDX",
+        "attribution_bm_label": "Nifty 500 (Proxy)",
+    },
+    "MODEFENCE.NS": {
+        "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
+        "is_etf": True, "tracks": "Nifty India Defence Index",
+        "etf_tier": 3, "attribution_bm": "^CRSLDX",
+        "attribution_bm_label": "Nifty 500 (Proxy)",
+    },
+    ## ── Nifty 50 ETFs (Tier 2 Broad Market) ─────────────────────────────────
+    "NIFTYBEES.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "HDFCNIFETF.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "ICICIB22.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "UTINIFTETF.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "SBIETFNIF50.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    ## ── Gold ETFs (Tier 4 Non-Equity) ────────────────────────────────────────
+    "GOLDBEES.NS": {
+        "sector": "Non-Equity ETF", "industry": "ETF — Gold (Physical)",
+        "is_etf": True, "tracks": "Physical Gold",
+        "etf_tier": 4, "attribution_bm": None,
+        "attribution_bm_label": "Excluded — non-equity ETF",
+    },
+    "HDFCMFGETF.NS": {
+        "sector": "Non-Equity ETF", "industry": "ETF — Gold (Physical)",
+        "is_etf": True, "tracks": "Physical Gold",
+        "etf_tier": 4, "attribution_bm": None,
+        "attribution_bm_label": "Excluded — non-equity ETF",
+    },
+    "NIPPONBEES.NS": {
+        "sector": "Non-Equity ETF", "industry": "ETF — Gold (Physical)",
+        "is_etf": True, "tracks": "Physical Gold",
+        "etf_tier": 4, "attribution_bm": None,
+        "attribution_bm_label": "Excluded — non-equity ETF",
+    },
+    ## ── Bank ETFs (Tier 1 Sector) ─────────────────────────────────────────────
+    "BANKBEES.NS": {
+        "sector": "Financial Services", "industry": "ETF — Nifty Bank Index",
+        "is_etf": True, "tracks": "Nifty Bank",
+        "etf_tier": 1, "attribution_bm": "^NSEBANK",
+        "attribution_bm_label": "^NSEBANK",
+    },
+    "HDFCNIFBAN.NS": {
+        "sector": "Financial Services", "industry": "ETF — Nifty Bank Index",
+        "is_etf": True, "tracks": "Nifty Bank",
+        "etf_tier": 1, "attribution_bm": "^NSEBANK",
+        "attribution_bm_label": "^NSEBANK",
+    },
+}
+
+def classify_etf(ticker, info_data):
+    """
+    Auto-classify any ETF into one of four tiers using its Yahoo Finance name.
+    Returns a dict compatible with ETF_DEFINITIONS format.
+    Falls back gracefully at every tier.
+    """
+    name = (
+        (info_data.get("longName",  "") or "") + " " +
+        (info_data.get("shortName", "") or "")
+    ).lower().strip()
+
+    ## Check manual override first
+    if ticker in ETF_DEFINITIONS:
+        return ETF_DEFINITIONS[ticker]
+
+    ## Tier 4 — Non-equity: exclude from BHB entirely (check first — gold/liquid must not go to sector)
+    for kw in ETF_EXCLUDE_KEYWORDS:
+        if kw in name:
+            return {
+                "sector":       "Non-Equity ETF",
+                "industry":     f"ETF — {info_data.get('longName', ticker)}",
+                "is_etf":       True,
+                "tracks":       info_data.get("longName", "Unknown Index"),
+                "etf_tier":     4,
+                "attribution_bm": None,
+                "attribution_bm_label": "Excluded — non-equity ETF",
+            }
+
+    ## Tier 1 — Sector ETF (check BEFORE broad market)
+    ## "Nifty IT ETF" must go to Tier 1, not Tier 2 via generic "nifty" match
+    for kw, (sector, bm_ticker) in ETF_SECTOR_MAP.items():
+        if kw in name:
+            return {
+                "sector":       sector,
+                "industry":     f"ETF — {info_data.get('longName', ticker)}",
+                "is_etf":       True,
+                "tracks":       info_data.get("longName", "Sector Index"),
+                "etf_tier":     1,
+                "attribution_bm": bm_ticker,
+                "attribution_bm_label": bm_ticker,
+            }
+
+    ## Tier 2 — Broad market: active contribution ≈ zero
+    for kw in ETF_BROAD_MARKET_KEYWORDS:
+        if kw in name:
+            return {
+                "sector":       "Broad Market ETF",
+                "industry":     f"ETF — {info_data.get('longName', ticker)}",
+                "is_etf":       True,
+                "tracks":       info_data.get("longName", "Broad Market Index"),
+                "etf_tier":     2,
+                "attribution_bm": None,
+                "attribution_bm_label": "Primary Benchmark (tracks index)",
+            }
+
+    ## Tier 3 — Thematic ETF: use Nifty 500 proxy
+    for kw, (theme, bm_ticker) in ETF_THEMATIC_MAP.items():
+        if kw in name:
+            return {
+                "sector":       theme,
+                "industry":     f"ETF — {info_data.get('longName', ticker)}",
+                "is_etf":       True,
+                "tracks":       info_data.get("longName", "Thematic Index"),
+                "etf_tier":     3,
+                "attribution_bm": bm_ticker,
+                "attribution_bm_label": f"{bm_ticker} (Proxy)",
+            }
+
+    ## Tier 4 fallback — unrecognised ETF → exclude from BHB
+    return {
+        "sector":       "Unknown ETF",
+        "industry":     f"ETF — {info_data.get('longName', ticker)}",
+        "is_etf":       True,
+        "tracks":       info_data.get("longName", "Unknown"),
+        "etf_tier":     4,
+        "attribution_bm": None,
+        "attribution_bm_label": "Not mapped — excluded from BHB",
+    }
+
+## Manual sector overrides for stocks Yahoo Finance cannot classify correctly
+## e.g. newly listed stocks, demerged entities, small caps
+MANUAL_SECTOR_MAP = {
+    "TMCV.NS": "Consumer Cyclical",
+    "TMPV.NS": "Consumer Cyclical",
+}
+
+## ─────────────────────────────────────────────────────────────────────────────
+# %%  DATA FETCHERS
+## ─────────────────────────────────────────────────────────────────────────────
+
+## ─────────────────────────────────────────────────────────────────────────────
+##  QUOTE OF THE DAY
+## ─────────────────────────────────────────────────────────────────────────────
+_FALLBACK_QUOTES = [
+    ("The ability to observe without evaluating is the highest form of intelligence.", "J. Krishnamurti"),
+    ("You are not a drop in the ocean. You are the entire ocean in a drop.", "Rumi"),
+    ("Muddy water is best cleared by leaving it alone.", "Alan Watts"),
+    ("Nature does not hurry, yet everything is accomplished.", "Lao Tzu"),
+    ("The wound is the place where the light enters you.", "Rumi"),
+    ("Yesterday I was clever, so I wanted to change the world. Today I am wise, so I am changing myself.", "Rumi"),
+    ("The quieter you become, the more you are able to hear.", "Rumi"),
+    ("Until you make the unconscious conscious, it will direct your life and you will call it fate.", "Carl Jung"),
+    ("The privilege of a lifetime is to become who you truly are.", "Carl Jung"),
+    ("To the mind that is still, the whole universe surrenders.", "Lao Tzu"),
+    ("What you seek is seeking you.", "Rumi"),
+    ("There is a crack in everything. That is how the light gets in.", "Leonard Cohen"),
+    ("The present moment always will have been.", "Alan Watts"),
+    ("We are shaped by our thoughts; we become what we think.", "Buddha"),
+    ("Do not go where the path may lead, go instead where there is no path and leave a trail.", "Ralph Waldo Emerson"),
+]
+
 def enrich_info(raw_ticker):
     """
     Auto-detect exchange, resolve missing suffix, classify cap category.
@@ -526,7 +813,22 @@ def enrich_info(raw_ticker):
         else:
             cap_cat = "Unknown"
 
-    ## ── Step 4: detect ETF via quoteType ────────────────────────────────────
+    ## ── Step 4: detect ETF — check manual definitions first, then quoteType ──
+    ## Manual definitions take priority — handles cases where Yahoo quoteType is missing
+    if resolved_ticker in ETF_DEFINITIONS or raw in ETF_DEFINITIONS:
+        _etf_def_key = resolved_ticker if resolved_ticker in ETF_DEFINITIONS else raw
+        etf_info = ETF_DEFINITIONS[_etf_def_key]
+        return {
+            "ticker":       resolved_ticker,
+            "exchange":     exchange or "Unknown",
+            "cap_category": "ETF",
+            "market_cap":   market_cap,
+            "display_name": info_data.get("shortName", resolved_ticker),
+            "is_etf":       True,
+            "etf_info":     etf_info,
+            "sector":       etf_info.get("sector", "ETF"),
+        }
+
     quote_type = info_data.get("quoteType", "")
     if quote_type == "ETF":
         etf_info = classify_etf(resolved_ticker, info_data)
@@ -891,9 +1193,18 @@ ETF_SECTOR_MAP = {
 
 ## Tier 2 — Broad Market ETFs: keyword list (active contribution ≈ zero)
 ETF_BROAD_MARKET_KEYWORDS = [
-    "nifty 50 ", "nifty50", "nifty 100", "nifty100",
-    "nifty 500", "nifty500", "sensex", "bse 500",
-    "nifty next 50", "niftynext",
+    ## Nifty 50 variants — SPECIFIC only, not generic 'nifty'
+    "nifty 50 ", "nifty50", "nifty bees", "niftybees",
+    "n50", "nif50",
+    ## Nifty 100 / Next 50 / Nifty 500
+    "nifty 100", "nifty100", "nifty next 50", "niftynext",
+    "nifty 500", "nifty500",
+    ## Sensex / BSE broad
+    "sensex", "bse 500", "bse500",
+    ## Generic Nifty ETF names — "HDFC Nifty ETF", "Kotak Nifty ETF"
+    ## NOTE: "nifty etf" must NOT match "nifty it etf" or "nifty auto etf"
+    ## So we keep it specific
+    "nifty etf",
 ]
 
 ## Tier 3 — Thematic ETFs: keyword → (theme_label, proxy_benchmark)
@@ -912,6 +1223,11 @@ ETF_THEMATIC_MAP = {
     "mid cap":     ("Mid Cap",               "^NSEMDCP150"),
     "smallcap":    ("Small Cap",             "^CRSLDX"),
     "small cap":   ("Small Cap",             "^CRSLDX"),
+    ## PSU / CPSE
+    "cpse":        ("PSU Theme",             "^CNXPSE"),
+    "bharat 22":   ("PSU Theme",             "^CNXPSE"),
+    ## Infra / Bharat Bond
+    "infrabees":   ("Industrials",           "^CNXINFRA"),
 }
 
 ## Tier 4 — Non-equity ETFs: these are EXCLUDED from BHB
@@ -927,23 +1243,81 @@ ETF_EXCLUDE_KEYWORDS = [
 
 ## Manual overrides — known ETFs where name-matching might fail
 ETF_DEFINITIONS = {
+    ## ── Defence ETFs (Tier 3 Thematic) ──────────────────────────────────────
     "GROWWDEFNC.NS": {
-        "sector":       "Defence & Aerospace",
-        "industry":     "ETF — Nifty India Defence Index",
-        "is_etf":       True,
-        "tracks":       "Nifty India Defence Index",
-        "etf_tier":     3,
-        "attribution_bm": "^CRSLDX",
+        "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
+        "is_etf": True, "tracks": "Nifty India Defence Index",
+        "etf_tier": 3, "attribution_bm": "^CRSLDX",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     "MODEFENCE.NS": {
-        "sector":       "Defence & Aerospace",
-        "industry":     "ETF — Nifty India Defence Index",
-        "is_etf":       True,
-        "tracks":       "Nifty India Defence Index",
-        "etf_tier":     3,
-        "attribution_bm": "^CRSLDX",
+        "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
+        "is_etf": True, "tracks": "Nifty India Defence Index",
+        "etf_tier": 3, "attribution_bm": "^CRSLDX",
         "attribution_bm_label": "Nifty 500 (Proxy)",
+    },
+    ## ── Nifty 50 ETFs (Tier 2 Broad Market) ─────────────────────────────────
+    "NIFTYBEES.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "HDFCNIFETF.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "ICICIB22.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "UTINIFTETF.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "SBIETFNIF50.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    ## ── Gold ETFs (Tier 4 Non-Equity) ────────────────────────────────────────
+    "GOLDBEES.NS": {
+        "sector": "Non-Equity ETF", "industry": "ETF — Gold (Physical)",
+        "is_etf": True, "tracks": "Physical Gold",
+        "etf_tier": 4, "attribution_bm": None,
+        "attribution_bm_label": "Excluded — non-equity ETF",
+    },
+    "HDFCMFGETF.NS": {
+        "sector": "Non-Equity ETF", "industry": "ETF — Gold (Physical)",
+        "is_etf": True, "tracks": "Physical Gold",
+        "etf_tier": 4, "attribution_bm": None,
+        "attribution_bm_label": "Excluded — non-equity ETF",
+    },
+    "NIPPONBEES.NS": {
+        "sector": "Non-Equity ETF", "industry": "ETF — Gold (Physical)",
+        "is_etf": True, "tracks": "Physical Gold",
+        "etf_tier": 4, "attribution_bm": None,
+        "attribution_bm_label": "Excluded — non-equity ETF",
+    },
+    ## ── Bank ETFs (Tier 1 Sector) ─────────────────────────────────────────────
+    "BANKBEES.NS": {
+        "sector": "Financial Services", "industry": "ETF — Nifty Bank Index",
+        "is_etf": True, "tracks": "Nifty Bank",
+        "etf_tier": 1, "attribution_bm": "^NSEBANK",
+        "attribution_bm_label": "^NSEBANK",
+    },
+    "HDFCNIFBAN.NS": {
+        "sector": "Financial Services", "industry": "ETF — Nifty Bank Index",
+        "is_etf": True, "tracks": "Nifty Bank",
+        "etf_tier": 1, "attribution_bm": "^NSEBANK",
+        "attribution_bm_label": "^NSEBANK",
     },
 }
 
@@ -962,7 +1336,7 @@ def classify_etf(ticker, info_data):
     if ticker in ETF_DEFINITIONS:
         return ETF_DEFINITIONS[ticker]
 
-    ## Tier 4 — Non-equity: exclude from BHB entirely
+    ## Tier 4 — Non-equity: exclude from BHB entirely (check first — gold/liquid must not go to sector)
     for kw in ETF_EXCLUDE_KEYWORDS:
         if kw in name:
             return {
@@ -975,20 +1349,8 @@ def classify_etf(ticker, info_data):
                 "attribution_bm_label": "Excluded — non-equity ETF",
             }
 
-    ## Tier 2 — Broad market: active contribution ≈ zero
-    for kw in ETF_BROAD_MARKET_KEYWORDS:
-        if kw in name:
-            return {
-                "sector":       "Broad Market ETF",
-                "industry":     f"ETF — {info_data.get('longName', ticker)}",
-                "is_etf":       True,
-                "tracks":       info_data.get("longName", "Broad Market Index"),
-                "etf_tier":     2,
-                "attribution_bm": None,   ## = use primary portfolio benchmark
-                "attribution_bm_label": "Primary Benchmark (tracks index)",
-            }
-
-    ## Tier 1 — Sector ETF: direct sector index available on Yahoo Finance
+    ## Tier 1 — Sector ETF (check BEFORE broad market)
+    ## "Nifty IT ETF" must go to Tier 1, not Tier 2 via generic "nifty" match
     for kw, (sector, bm_ticker) in ETF_SECTOR_MAP.items():
         if kw in name:
             return {
@@ -999,6 +1361,19 @@ def classify_etf(ticker, info_data):
                 "etf_tier":     1,
                 "attribution_bm": bm_ticker,
                 "attribution_bm_label": bm_ticker,
+            }
+
+    ## Tier 2 — Broad market: active contribution ≈ zero
+    for kw in ETF_BROAD_MARKET_KEYWORDS:
+        if kw in name:
+            return {
+                "sector":       "Broad Market ETF",
+                "industry":     f"ETF — {info_data.get('longName', ticker)}",
+                "is_etf":       True,
+                "tracks":       info_data.get("longName", "Broad Market Index"),
+                "etf_tier":     2,
+                "attribution_bm": None,
+                "attribution_bm_label": "Primary Benchmark (tracks index)",
             }
 
     ## Tier 3 — Thematic ETF: use Nifty 500 proxy
@@ -1056,6 +1431,23 @@ _FALLBACK_QUOTES = [
     ("We are shaped by our thoughts; we become what we think.", "Buddha"),
     ("Do not go where the path may lead, go instead where there is no path and leave a trail.", "Ralph Waldo Emerson"),
 ]
+
+@st.cache_data(ttl=86400)
+def get_quote_of_day():
+    try:
+        import requests as _req
+        resp = _req.get("https://zenquotes.io/api/today", timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data and isinstance(data, list) and "q" in data[0] and "a" in data[0]:
+                q = data[0]["q"].strip(); a = data[0]["a"].strip()
+                if len(q) > 10 and a.lower() not in ("unknown",""):
+                    return q, a
+    except Exception:
+        pass
+    import datetime
+    seed = int(datetime.date.today().strftime("%Y%m%d")) % len(_FALLBACK_QUOTES)
+    return _FALLBACK_QUOTES[seed]
 
 @st.cache_data(ttl=86400)
 def get_quote_of_day():
@@ -1147,17 +1539,21 @@ def detect_portfolio_benchmark(enriched_rows):
     nse_count = exchanges.count("NSE")
     dominant_exchange = "BSE" if bse_count > nse_count else "NSE"
 
-    ## Count cap categories
-    caps = [r["cap_category"] for r in enriched_rows]
+    ## Count cap categories — EXCLUDE ETFs from this count
+    ## ETFs are not themselves large/mid/small cap stocks
+    ## Benchmark should be based on the equity stock portion only
+    caps  = [r["cap_category"] for r in enriched_rows
+             if r["cap_category"] not in ("ETF", "Non-Equity ETF", "Broad Market ETF",
+                                           "Unknown", "Unclassified")]
     large = caps.count("Large Cap")
     mid   = caps.count("Mid Cap")
     small = caps.count("Small Cap")
-    total = len(caps)
+    total = max(len(caps), 1)  ## use equity-only count
 
-    ## Determine dominant cap type
-    if large / max(total, 1) >= 0.6:
+    ## Determine dominant cap type from stock portion
+    if large / total >= 0.6:
         dominant_cap = "Large Cap"
-    elif (mid + small) / max(total, 1) >= 0.6:
+    elif (mid + small) / total >= 0.6:
         dominant_cap = "Mid/Small Cap"
     else:
         dominant_cap = "Mixed"
