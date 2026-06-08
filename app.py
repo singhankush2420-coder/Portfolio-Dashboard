@@ -445,6 +445,31 @@ if auto_refresh:
 ## ─────────────────────────────────────────────────────────────────────────────
 ## ── Holdings form — collapsible after first submission ──────────────────────
 
+## ── Fallback cap classification — used when Yahoo Finance returns no marketCap ──
+_NIFTY50_TICKERS = {
+    "RELIANCE","TCS","HDFCBANK","INFY","ICICIBANK","KOTAKBANK",
+    "HINDUNILVR","SBIN","BHARTIARTL","ITC","AXISBANK","LT",
+    "BAJFINANCE","ASIANPAINT","MARUTI","TITAN","SUNPHARMA",
+    "ULTRACEMCO","NESTLEIND","WIPRO","HCLTECH","TECHM","TATASTEEL",
+    "JSWSTEEL","POWERGRID","NTPC","ONGC","COALINDIA","ADANIENT",
+    "ADANIPORTS","DRREDDY","CIPLA","DIVISLAB","APOLLOHOSP",
+    "BAJAJFINSV","BAJAJ-AUTO","EICHERMOT","HEROMOTOCO","MM",
+    "TATAMOTORS","TATACONSUM","BRITANNIA","BPCL","GRASIM",
+    "HINDALCO","INDUSINDBK","SBILIFE","HDFCLIFE","ICICIPRULI",
+    "VEDL","SHRIRAMFIN","BEL","TRENT","JSWENERGY","NHPC",
+}
+_KNOWN_MIDCAP_TICKERS = {
+    "MPHASIS","PERSISTENT","COFORGE","LTIM","LTTS","NAUKRI",
+    "AUBANK","BALKRISIND","BANDHANBNK","BATAINDIA","BERGEPAINT",
+    "BIOCON","CROMPTON","CUMMINSIND","DALBHARAT","DEEPAKNTR",
+    "DIXON","FEDERALBNK","GODREJCP","GODREJPROP","HDFCAMC",
+    "IDFCFIRSTB","INDIAMART","IGL","JKCEMENT","KANSAINER",
+    "LICHSGFIN","MARICO","METROPOLIS","MUTHOOTFIN","NMDC",
+    "OFSS","PAGEIND","PIIND","POLYCAB","RADICO","RAMCOCEM",
+    "SAIL","SRF","SUPREMEIND","TORNTPHARM","TORNTPOWER",
+    "VOLTAS","ZOMATO","PAYTM","NYKAA","IRCTC","IRFC","RVNL",
+}
+
 def enrich_info(raw_ticker):
     """
     Auto-detect exchange, resolve missing suffix, classify cap category.
@@ -492,7 +517,14 @@ def enrich_info(raw_ticker):
     elif market_cap > 0:
         cap_cat = "Small Cap"
     else:
-        cap_cat = "Unknown"
+        ## Yahoo sometimes returns no marketCap — use known index lists as fallback
+        _base = raw.replace(".NS","").replace(".BO","")
+        if _base in _NIFTY50_TICKERS:
+            cap_cat = "Large Cap"
+        elif _base in _KNOWN_MIDCAP_TICKERS:
+            cap_cat = "Mid Cap"
+        else:
+            cap_cat = "Unknown"
 
     ## ── Step 4: detect ETF via quoteType ────────────────────────────────────
     quote_type = info_data.get("quoteType", "")
@@ -509,6 +541,9 @@ def enrich_info(raw_ticker):
             "sector":       etf_info["sector"],
         }
 
+    ## Get sector from Yahoo Finance info (already fetched above)
+    _sector_yf = info_data.get("sector", None) or None
+
     return {
         "ticker":       resolved_ticker,
         "exchange":     exchange or "Unknown",
@@ -517,7 +552,7 @@ def enrich_info(raw_ticker):
         "display_name": info_data.get("shortName", resolved_ticker),
         "is_etf":       False,
         "etf_info":     None,
-        "sector":       None,
+        "sector":       _sector_yf,
     }
 if "holdings_df" not in st.session_state:
     st.session_state["holdings_df"] = pd.DataFrame({
@@ -2197,7 +2232,7 @@ def create_institutional_pdf(
         inter  = [v*100 for v in sector_df["Interaction Effect"].fillna(0).tolist()]
         total_e= [v*100 for v in sector_df["Total Active Return"].fillna(0).tolist()]
         ## Dynamic height — scales with number of stocks
-        _n_stocks_bhb = len(x)
+        _n_stocks_bhb = len(ticks)   ## ticks defined above, x not yet
         _bhb_h = max(4.2, _n_stocks_bhb * 0.5)
         fig,(ax1,ax2)=plt.subplots(1,2,figsize=(10,_bhb_h)); fig.patch.set_facecolor(C_BG)
         x=np.arange(len(ticks)); w=0.22
@@ -3516,16 +3551,28 @@ _bm_weight_info = BENCHMARK_SECTOR_WEIGHTS.get(
 )
 
 ## Show detection result
-_cap_counts  = holdings_df["Cap"].value_counts().to_dict()
-_exch_counts = holdings_df["Exchange"].value_counts().to_dict()
-_detect_msg  = (
+_cap_raw     = holdings_df["Cap"].value_counts().to_dict()
+_cap_display = {
+    ("ETF"        if k == "ETF"       else
+     "Large Cap"  if k == "Large Cap" else
+     "Mid Cap"    if k == "Mid Cap"   else
+     "Small Cap"  if k == "Small Cap" else
+     "Unclassified"): v
+    for k, v in _cap_raw.items()
+}
+_exch_counts  = holdings_df["Exchange"].value_counts().to_dict()
+_exch_display = {k: v for k, v in _exch_counts.items() if k in ("NSE", "BSE")}
+_unresolved   = sum(v for k, v in _exch_counts.items() if k not in ("NSE", "BSE"))
+_cap_str  = " · ".join([f"{v} {k}" for k, v in _cap_display.items()])
+_exch_str = " · ".join([f"{v} {k}" for k, v in _exch_display.items()])
+if _unresolved:
+    _exch_str += f" · {_unresolved} Unresolved"
+_detect_msg = (
     f"{'Auto-detected' if _auto_detected else 'Selected'} benchmark: "
     f"<strong style='color:#C8A951'>{BENCHMARK_NAME}</strong> ({BENCHMARK_TICKER})"
     f" &nbsp;|&nbsp; Sector weights: {_bm_weight_info['name']} ({_bm_weight_info['updated']})"
-    f" &nbsp;|&nbsp; "
-    + " · ".join([f"{v} {k}" for k, v in _cap_counts.items()])
-    + " &nbsp;|&nbsp; "
-    + " · ".join([f"{v} {k}" for k, v in _exch_counts.items()])
+    f" &nbsp;|&nbsp; {_cap_str}"
+    f" &nbsp;|&nbsp; {_exch_str}"
 )
 st.markdown(
     f"<div style='padding:8px 14px;background:#0D1723;border:1px solid #21262D;"
@@ -3682,6 +3729,11 @@ try:
 }
 </style>
 """, unsafe_allow_html=True)
+
+    ## Initialize sector_df before tabs so tab7 can access it
+    ## even if tab3 hasn't been visited yet
+    sector_df = None
+    attr_df   = None
 
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "&#9632;  Overview",
@@ -5063,9 +5115,13 @@ border-radius:8px;font-size:11px;color:#8B949E">
                 if _tk:
                     _ticker_sector_map[_tk] = _sec
         else:
-            ## Fallback — fetch sectors from enriched_info
+            ## Fallback — fetch sectors from enriched_info (sector stored during enrich step)
             for _tk, _ei in enriched_info.items():
-                _sec = _ei.get("sector","Unknown")
+                _sec = _ei.get("sector", None)
+                ## If not in enriched_info, fetch from Yahoo directly
+                if not _sec or _sec in ["Unknown", "N/A"]:
+                    _sec_info = fetch_sector_info(_tk)
+                    _sec = _sec_info.get("sector", "Unknown")
                 if _sec and _sec not in ["Unknown","N/A"] and _sec not in _portfolio_sectors:
                     _portfolio_sectors.append(_sec)
                 _ticker_sector_map[_tk] = _sec
