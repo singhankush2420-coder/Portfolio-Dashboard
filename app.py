@@ -569,7 +569,8 @@ else:
     with st.form("holdings_form"):
         holdings_df = st.data_editor(
             st.session_state["holdings_df"],
-            num_rows="fixed", use_container_width=True
+            num_rows="fixed", use_container_width=True,
+            hide_index=True 
         )
         submitted = st.form_submit_button("✅ Start Porfolio Analysis")
 
@@ -826,9 +827,11 @@ ETF_SECTOR_MAP = {
     "financial":      ("Financial Services",  "^NSEBANK"),
     ## Technology / IT
     "it ":            ("Technology",          "^CNXIT"),
+    " it":            ("Technology",          "^CNXIT"),
+    "nifty it":       ("Technology",          "^CNXIT"),
     "infotech":       ("Technology",          "^CNXIT"),
     "information tech":("Technology",         "^CNXIT"),
-    "nifty it":       ("Technology",          "^CNXIT"),
+    "tech etf":       ("Technology",          "^CNXIT"),
     ## Pharma / Healthcare
     "pharma":         ("Healthcare",          "^CNXPHARMA"),
     "healthcare":     ("Healthcare",          "^CNXPHARMA"),
@@ -883,6 +886,8 @@ ETF_EXCLUDE_KEYWORDS = [
     "money market", "bond", "gilt", "debt", "bharat bond",
     "nasdaq", "s&p 500", "s&p500", "hangseng", "hang seng",
     "global", "international", "world", "us equity",
+    "nyse", "fang", "us tech", "china", "taiwan",
+    "japan", "europe", "emerging market", "mirae asset nyse",
 ]
 
 ## Manual overrides — known ETFs where name-matching might fail
@@ -2033,7 +2038,8 @@ def create_institutional_pdf(
         ticks=[h.replace(".NS","") for h in holdings_df["Ticker"].tolist()]
         pnls=holdings_df["P&L"].tolist(); rets=holdings_df["Return %"].tolist()
         c_p=[C_GREEN if p>=0 else C_RED for p in pnls]; c_r=[C_GREEN if r>=0 else C_RED for r in rets]
-        fig,(ax1,ax2)=plt.subplots(1,2,figsize=(10,3.8)); fig.patch.set_facecolor(C_BG)
+        _pnl_h = max(3.8, len(ticks) * 0.5)
+        fig,(ax1,ax2)=plt.subplots(1,2,figsize=(10,_pnl_h)); fig.patch.set_facecolor(C_BG)
         bars1=ax1.barh(ticks,pnls,color=c_p,edgecolor="white",height=0.55)
         ## Extend x-axis to prevent labels overflowing into ticker names
         _mx_p = max(abs(p) for p in pnls) if pnls else 1
@@ -2158,7 +2164,8 @@ def create_institutional_pdf(
         vals   = contribs_s + [net]
         ## Standalone bars — each from zero, no accumulation
         bar_colors = [C_GREEN if v>=0 else C_RED for v in contribs_s] + [C_STEEL]
-        fig,ax=plt.subplots(figsize=(10,4)); fig.patch.set_facecolor(C_BG)
+        _wf_h = max(4.0, len(labels) * 0.45)
+        fig,ax=plt.subplots(figsize=(10,_wf_h)); fig.patch.set_facecolor(C_BG)
         bars=ax.bar(range(len(labels)), vals, color=bar_colors,
                     edgecolor="white", lw=1, width=0.6, zorder=3)
         y_max = max(abs(v) for v in vals) * 0.12
@@ -2189,7 +2196,10 @@ def create_institutional_pdf(
         sel    = [v*100 for v in sector_df["Selection Effect"].fillna(0).tolist()]
         inter  = [v*100 for v in sector_df["Interaction Effect"].fillna(0).tolist()]
         total_e= [v*100 for v in sector_df["Total Active Return"].fillna(0).tolist()]
-        fig,(ax1,ax2)=plt.subplots(1,2,figsize=(10,4.2)); fig.patch.set_facecolor(C_BG)
+        ## Dynamic height — scales with number of stocks
+        _n_stocks_bhb = len(x)
+        _bhb_h = max(4.2, _n_stocks_bhb * 0.5)
+        fig,(ax1,ax2)=plt.subplots(1,2,figsize=(10,_bhb_h)); fig.patch.set_facecolor(C_BG)
         x=np.arange(len(ticks)); w=0.22
         ax1.bar(x-w,alloc,width=w,color=C_STEEL,label="Allocation",alpha=0.9)
         ax1.bar(x,sel,  width=w,color=C_GOLD, label="Selection",  alpha=0.9)
@@ -2225,7 +2235,8 @@ def create_institutional_pdf(
         stock_r=sector_df["Stock Return"].tolist()
         sector_r=sector_df["Sector Return"].tolist()
         is_etf_=sector_df["Is ETF"].tolist() if "Is ETF" in sector_df.columns else [False]*len(ticks)
-        fig,ax=plt.subplots(figsize=(10,4)); fig.patch.set_facecolor(C_BG)
+        _sec_h = max(4.0, len(ticks) * 0.5)
+        fig,ax=plt.subplots(figsize=(10,_sec_h)); fig.patch.set_facecolor(C_BG)
         x=np.arange(len(ticks)); w=0.5
         c_s=[C_GREEN if r>=0 else C_RED for r in stock_r]
         ax.bar(x,[r*100 for r in stock_r],width=w*1.1,color=c_s,edgecolor="white",alpha=0.9,label="Stock Return",zorder=3)
@@ -3031,7 +3042,7 @@ def create_institutional_pdf(
         elements.append(Spacer(1, 1*mm))
         mkt_shocks = [-0.05, -0.10, -0.15, -0.20, -0.30, -0.40, -0.50]
         mkt_labels = ["-5%", "-10%", "-15%", "-20% (Severe)",
-                      "-30% (Crash)", "-40% (Crisis)", "-50% (Black Swan)"]
+                      "-30% Nifty Crash", "-40% Nifty Crisis", "-50% Nifty Black Swan"]
         mkt_data = [["Nifty Shock", "Portfolio Impact", "Est. Loss (Rs.)", "New Value (Rs.)"]]
         for shock, label in zip(mkt_shocks, mkt_labels):
             port_impact = shock * portfolio_beta
@@ -3085,7 +3096,7 @@ def create_institutional_pdf(
             f"{portfolio_beta:.2f}x with the index. "
             f"In a severe 50% crash (Black Swan scenario), the estimated portfolio loss is "
             f"<b>Rs.{worst_mkt_loss:,.0f}</b> ({abs(-0.50*portfolio_beta):.1%} of current value). "
-            f"The worst historical scenario (2008 Financial Crisis at {worst_hist_pct:.1%}) "
+            f"The worst historical scenario (worst historical scenario at {worst_hist_pct:.1%}) "
             f"implies an estimated loss of <b>Rs.{worst_hist_rs:,.0f}</b>. "
             f"A Beta below 1.0 provides a defensive buffer vs the index in broad market downturns. "
             f"However, single-stock concentration risk can cause losses independent of market direction. "
@@ -4777,7 +4788,7 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
         st.markdown("<p style='font-size:12px;color:#8B949E;margin-bottom:12px'>How much would your portfolio lose if Nifty 50 dropped by these amounts? Uses Beta = " + f"{portfolio_beta:.4f}" + " to estimate portfolio sensitivity.</p>", unsafe_allow_html=True)
 
         market_shocks = [-0.05, -0.10, -0.15, -0.20, -0.30, -0.40, -0.50]
-        shock_labels  = ["−5%", "−10%", "−15%", "−20% (Severe)", "−30% (Crash)", "−40% (Crisis)", "−50% (Black Swan)"]
+        shock_labels  = ["−5%", "−10%", "−15%", "−20% Nifty Severe", "−30% Nifty Crash", "−40% Nifty Crisis", "−50% Nifty Black Swan"]
         shock_colors  = ["#FFB74D", "#FF9100", "#FF6D00", "#FF1744", "#D50000", "#B71C1C", "#7F0000"]
 
         mkt_rows = []
@@ -4791,8 +4802,8 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
                 "Portfolio Impact (%)": f"{port_impact:.2%}",
                 "Loss (₹)":          f"₹{port_loss_rs:,.0f}",
                 "New Value (₹)":     f"₹{new_value:,.0f}",
-                "Recovered?":        "Yes ✅" if new_value >= total_current else ("Close 🟡" if new_value >= total_current * 0.95 else "No ❌")
             })
+
 
         mkt_df = pd.DataFrame(mkt_rows)
 
@@ -4883,12 +4894,12 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
         st.markdown("<p style='font-size:12px;color:#8B949E;margin-bottom:12px'>How would your current portfolio have fared during past market crashes? Estimated using Nifty 50 peak-to-trough decline × portfolio Beta.</p>", unsafe_allow_html=True)
 
         historical_scenarios = [
-            ("COVID Crash",         "Feb–Mar 2020",  -0.385, "Fastest 38% bear market in history. Global lockdowns."),
-            ("2008 Financial Crisis","Jan–Oct 2008",  -0.605, "Global banking collapse. Nifty fell 60% peak to trough."),
-            ("2022 Rate Hike Selloff","Oct 2021–Jun 2022", -0.175, "Fed rate hikes + Russia-Ukraine. Nifty fell ~17%."),
-            ("2024 Election Volatility","Apr–Jun 2024", -0.062, "Surprise election result. Nifty fell ~6% in days."),
-            ("2015 China Crash",    "Mar–Feb 2016",  -0.261, "China slowdown fears. Nifty fell 26%."),
-            ("Dot-Com Bust",        "Feb 2000–Sep 2001", -0.56, "Tech bubble burst. Sensex fell ~56% over 18 months."),
+            ("COVID Crash (NSE)",        "Feb–Mar 2020",      -0.385, "Nifty fell 38.5% in 40 days — fastest crash in NSE history. Circuit breakers triggered twice."),
+            ("2008 Global Crisis (NSE)", "Jan–Oct 2008",      -0.605, "Nifty fell 60.5% in 9 months. FII outflows of ₹52,000 Cr. Worst bear market in NSE history."),
+            ("2022 Rate Selloff (NSE)",  "Oct 2021–Jun 2022", -0.175, "Nifty fell 17.5%. RBI raised repo rate 250bps. FII sold ₹2.8 lakh Cr in Indian equities."),
+            ("2024 Election Shock (NSE)","Apr–Jun 2024",      -0.062, "Nifty fell 6.2% on June 4. Unexpected coalition outcome. Recovered within 1 month."),
+            ("2015–16 Correction (NSE)", "Mar 2015–Feb 2016",-0.261, "Nifty fell 26.1% over 11 months. Global commodity rout hit Indian metals and IT."),
+            ("Dot-Com Bust (Sensex)",    "Feb 2000–Sep 2001", -0.560, "Sensex fell 56% over 19 months. Indian tech stocks crashed 70–90%. Pre-2008 worst."),
         ]
 
         hist_rows = []
@@ -5212,12 +5223,12 @@ border-radius:8px;font-size:11px;color:#8B949E">
 
     ## ── PDF button — all variables now available after tabs run ────────────────
     _stress_scenarios = [
-        ("COVID Crash",          "Feb-Mar 2020",       -0.385),
-        ("2008 Financial Crisis","Jan-Oct 2008",       -0.605),
-        ("2022 Rate Hike",       "Oct 2021-Jun 2022",  -0.175),
-        ("2024 Election",        "Apr-Jun 2024",       -0.062),
-        ("2015 China Crash",     "Mar-Feb 2016",       -0.261),
-        ("Dot-Com Bust",         "Feb 2000-Sep 2001",  -0.560),
+        ("COVID Crash (NSE)",        "Feb-Mar 2020",       -0.385),
+        ("2008 Global Crisis (NSE)", "Jan-Oct 2008",       -0.605),
+        ("2022 Rate Selloff (NSE)",  "Oct 2021-Jun 2022",  -0.175),
+        ("2024 Election Shock (NSE)","Apr-Jun 2024",       -0.062),
+        ("2015-16 Correction (NSE)", "Mar 2015-Feb 2016",  -0.261),
+        ("Dot-Com Bust (Sensex)",    "Feb 2000-Sep 2001",  -0.560),
     ]
     try:
         _risk_df_pdf  = risk_df  if 'risk_df'  in locals() else pd.DataFrame()
