@@ -1468,15 +1468,36 @@ def get_quote_of_day():
 
 @st.cache_data(ttl=ttl_seconds)
 def fetch_price_history(tickers, start, end):
-    data = yf.download(tickers, start=start, end=end, progress=False, auto_adjust=True)
+    ## Try with auto_adjust=True first (yfinance >= 0.2.x)
+    try:
+        data = yf.download(tickers, start=start, end=end,
+                           progress=False, auto_adjust=True)
+    except Exception:
+        data = pd.DataFrame()
+
+    if data.empty:
+        ## Fallback: try without auto_adjust
+        try:
+            data = yf.download(tickers, start=start, end=end,
+                               progress=False, auto_adjust=False)
+        except Exception:
+            return pd.DataFrame()
+
     if data.empty:
         return pd.DataFrame()
+
+    ## Handle both MultiIndex (multiple tickers) and flat (single ticker)
     if isinstance(data.columns, pd.MultiIndex):
-        col    = "Adj Close" if "Adj Close" in data.columns.get_level_values(0) else "Close"
+        ## Newer yfinance: auto_adjust=True returns "Close" not "Adj Close"
+        level0 = data.columns.get_level_values(0).unique().tolist()
+        col = "Close" if "Close" in level0 else (
+              "Adj Close" if "Adj Close" in level0 else level0[0])
         prices = data[col]
     else:
-        col    = "Adj Close" if "Adj Close" in data.columns else "Close"
+        col = "Close" if "Close" in data.columns else (
+              "Adj Close" if "Adj Close" in data.columns else data.columns[0])
         prices = data[[col]]
+
     if isinstance(prices, pd.Series):
         prices = prices.to_frame()
     return prices.dropna(how="all")
@@ -3985,7 +4006,14 @@ st.markdown(
 try:
     prices = fetch_price_history(tickers, portfolio_start_date, portfolio_end_date)
     if prices.empty:
-        st.error("No data found for selected tickers / date range.")
+        st.error(
+            "⚠️ No price data returned for your tickers. "
+            "Possible causes: \n"
+            "1. Invalid ticker symbol — ensure it ends with .NS or .BO \n"
+            "2. Buy date too recent — market may not have data yet \n"
+            "3. Temporary Yahoo Finance outage — try refreshing in a minute \n"
+            f"Tickers attempted: {', '.join(tickers)}"
+        )
         st.stop()
 
     returns = compute_returns(prices)
