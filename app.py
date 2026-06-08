@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May  4 22:40:06 2026
-
-@author: Ankush
-"""
-
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -588,7 +581,21 @@ ETF_DEFINITIONS = {
         "etf_tier": 2, "attribution_bm": None,
         "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
     },
+    ## HDFCNIFETF.NS is delisted on Yahoo Finance — keeping for legacy support
+    ## Users should use HDFCNIFTY.NS instead
     "HDFCNIFETF.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index (Delisted on Yahoo)",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "HDFCNIFTY.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "HDFCNIF50.NS": {
         "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
         "is_etf": True, "tracks": "Nifty 50",
         "etf_tier": 2, "attribution_bm": None,
@@ -817,16 +824,19 @@ def enrich_info(raw_ticker):
     ## Manual definitions take priority — handles cases where Yahoo quoteType is missing
     if resolved_ticker in ETF_DEFINITIONS or raw in ETF_DEFINITIONS:
         _etf_def_key = resolved_ticker if resolved_ticker in ETF_DEFINITIONS else raw
-        etf_info = ETF_DEFINITIONS[_etf_def_key]
+        etf_info     = ETF_DEFINITIONS[_etf_def_key]
+        ## Check if this is a delisted ticker (industry contains "Delisted")
+        _is_delisted = "Delisted" in etf_info.get("industry", "")
         return {
             "ticker":       resolved_ticker,
-            "exchange":     exchange or "Unknown",
+            "exchange":     exchange or "NSE",
             "cap_category": "ETF",
             "market_cap":   market_cap,
             "display_name": info_data.get("shortName", resolved_ticker),
             "is_etf":       True,
             "etf_info":     etf_info,
             "sector":       etf_info.get("sector", "ETF"),
+            "delisted":     _is_delisted,
         }
 
     quote_type = info_data.get("quoteType", "")
@@ -960,6 +970,20 @@ with st.spinner("Detecting exchange and market cap for each holding..."):
     holdings_df["Exchange"]  = [enriched_info[t]["exchange"]     for t in tickers]
     holdings_df["Cap"]       = [enriched_info[t]["cap_category"] for t in tickers]
     tickers                  = holdings_df["Ticker"].tolist()
+
+    ## Warn user about any delisted/invalid tickers
+    _delisted_warn = [
+        t for t in tickers
+        if enriched_info.get(t, {}).get("delisted", False)
+    ]
+    if _delisted_warn:
+        _dl_str = ", ".join([t.replace(".NS","").replace(".BO","") for t in _delisted_warn])
+        st.warning(
+            f"⚠️ **Ticker(s) not found on Yahoo Finance: {_dl_str}**\n\n"
+            f"These tickers may be delisted or renamed. "
+            f"Price data will be unavailable — please check the correct ticker symbol. "
+            f"Example: HDFCNIFETF.NS → try HDFCNIFTY.NS instead."
+        )
 
 ## ─────────────────────────────────────────────────────────────────────────────
 # %%  CONSTANTS — INSTITUTIONAL PARAMETERS
@@ -1263,7 +1287,21 @@ ETF_DEFINITIONS = {
         "etf_tier": 2, "attribution_bm": None,
         "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
     },
+    ## HDFCNIFETF.NS is delisted on Yahoo Finance — keeping for legacy support
+    ## Users should use HDFCNIFTY.NS instead
     "HDFCNIFETF.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index (Delisted on Yahoo)",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "HDFCNIFTY.NS": {
+        "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
+        "is_etf": True, "tracks": "Nifty 50",
+        "etf_tier": 2, "attribution_bm": None,
+        "attribution_bm_label": "Primary Benchmark (tracks Nifty 50)",
+    },
+    "HDFCNIF50.NS": {
         "sector": "Broad Market ETF", "industry": "ETF — Nifty 50 Index",
         "is_etf": True, "tracks": "Nifty 50",
         "etf_tier": 2, "attribution_bm": None,
@@ -1505,28 +1543,56 @@ def fetch_price_history(tickers, start, end):
 
 @st.cache_data(ttl=ttl_seconds)
 def fetch_latest_prices(tickers):
-    data = yf.download(tickers, period="5d", progress=False, auto_adjust=True)
+    ## Try auto_adjust=True first (newer yfinance)
+    try:
+        data = yf.download(tickers, period="5d", progress=False, auto_adjust=True)
+    except Exception:
+        data = pd.DataFrame()
+
+    if data.empty:
+        try:
+            data = yf.download(tickers, period="5d", progress=False, auto_adjust=False)
+        except Exception:
+            return pd.Series(dtype=float)
+
     if data.empty:
         return pd.Series(dtype=float)
+
     if isinstance(data.columns, pd.MultiIndex):
-        col    = "Adj Close" if "Adj Close" in data.columns.get_level_values(0) else "Close"
+        level0 = data.columns.get_level_values(0).unique().tolist()
+        col    = "Close" if "Close" in level0 else (
+                 "Adj Close" if "Adj Close" in level0 else level0[0])
         latest = data[col].ffill().iloc[-1]
     else:
-        col    = "Adj Close" if "Adj Close" in data.columns else "Close"
-        latest = data[col].ffill().iloc[-1]
+        col    = "Close" if "Close" in data.columns else (
+                 "Adj Close" if "Adj Close" in data.columns else data.columns[0])
+        latest = data[[col]].ffill().iloc[-1]
+        if hasattr(latest, 'squeeze'):
+            latest = latest.squeeze()
     return latest
 
 
 @st.cache_data(ttl=ttl_seconds)
 def fetch_benchmark(ticker, start, end):
-    data = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+    try:
+        data = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+    except Exception:
+        data = pd.DataFrame()
+    if data.empty:
+        try:
+            data = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=False)
+        except Exception:
+            return pd.Series(dtype=float)
     if data.empty:
         return pd.Series(dtype=float)
     if isinstance(data.columns, pd.MultiIndex):
-        col    = "Adj Close" if "Adj Close" in data.columns.get_level_values(0) else "Close"
+        level0 = data.columns.get_level_values(0).unique().tolist()
+        col    = "Close" if "Close" in level0 else (
+                 "Adj Close" if "Adj Close" in level0 else level0[0])
         series = data[col].squeeze()
     else:
-        col    = "Adj Close" if "Adj Close" in data.columns else "Close"
+        col    = "Close" if "Close" in data.columns else (
+                 "Adj Close" if "Adj Close" in data.columns else data.columns[0])
         series = data[col]
     return series.dropna()
 
@@ -4021,9 +4087,21 @@ try:
     ## ── Holdings calculations ─────────────────────────────────────────────────
     latest_prices_series = fetch_latest_prices(tickers)
     holdings_df["Current Price"] = holdings_df["Ticker"].map(latest_prices_series)
-    if holdings_df["Current Price"].isna().any():
-        st.error("Some tickers could not be matched with Yahoo Finance.")
-        st.stop()
+    ## If some tickers have no current price — warn but continue with available data
+    _bad_tickers = holdings_df[holdings_df["Current Price"].isna()]["Ticker"].tolist()
+    if _bad_tickers:
+        _bad_str = ", ".join([t.replace(".NS","").replace(".BO","") for t in _bad_tickers])
+        st.warning(
+            f"⚠️ Could not fetch current price for: **{_bad_str}**. "
+            f"These holdings will be excluded from calculations. "
+            f"Check that the ticker symbol is valid on Yahoo Finance."
+        )
+        ## Drop the bad tickers from holdings_df
+        holdings_df = holdings_df[holdings_df["Current Price"].notna()].copy()
+        tickers     = holdings_df["Ticker"].tolist()
+        if holdings_df.empty:
+            st.error("No valid tickers remaining. Please check your portfolio.")
+            st.stop()
 
     holdings_df["Invested Value"] = holdings_df["Buy Price"] * holdings_df["Quantity"]
     holdings_df["Current Value"]  = holdings_df["Current Price"] * holdings_df["Quantity"]
