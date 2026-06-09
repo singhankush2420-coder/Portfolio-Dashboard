@@ -2667,19 +2667,40 @@ def create_institutional_pdf(
         fig,ax=plt.subplots(figsize=(10,3.8)); fig.patch.set_facecolor(C_BG)
         if port_returns is not None and len(port_returns)>2:
             cum=((1+port_returns).cumprod()); rm=cum.cummax(); dd=(cum-rm)/rm*100
+            current_dd = float(dd.iloc[-1])
+            max_dd_val = float(dd.min())
+            idx_max    = dd.idxmin()
+            current_dt = dd.index[-1]
+            _date_range= max((dd.index[-1]-dd.index[0]).days,1)
             ax.fill_between(dd.index,dd.values,0,alpha=0.5,color=C_RED,label="Drawdown")
             ax.plot(dd.index,dd.values,color=C_RED,lw=1.2)
-            idx_=dd.idxmin()
-            ax.axvline(idx_,color=C_AMBER,lw=1.5,linestyle="--",alpha=0.8)
-            ax.annotate(f"Max DD\n{dd.min():.2f}%",xy=(idx_,dd.min()),
-                        xytext=(10,-8),textcoords="offset points",fontsize=8,color=C_AMBER,fontweight="bold",
+            ax.axvline(idx_max,color=C_AMBER,lw=1.5,linestyle="--",alpha=0.8,
+                       label=f"Max DD: {max_dd_val:.2f}%")
+            _xoff = 10 if (idx_max-dd.index[0]).days/_date_range < 0.75 else -75
+            ax.annotate(f"Max DD\n{max_dd_val:.2f}%\n{idx_max.strftime('%b %Y')}",
+                        xy=(idx_max,max_dd_val),xytext=(_xoff,-8),
+                        textcoords="offset points",fontsize=7.5,color=C_AMBER,fontweight="bold",
+                        bbox=dict(boxstyle="round,pad=0.3",facecolor="#1A1200",edgecolor=C_AMBER,alpha=0.85),
                         arrowprops=dict(arrowstyle="->",color=C_AMBER,lw=1))
+            _in_dd   = current_dd < -0.1
+            _dcol    = "#FF1744" if _in_dd else "#00C853"
+            ax.scatter([current_dt],[current_dd],color=_dcol,s=50,zorder=5)
+            _cxoff   = -75 if (current_dt-dd.index[0]).days/_date_range > 0.85 else -55
+            _dlabel  = f"Today\n{current_dd:.2f}%" + ("" if _in_dd else "\nRecovered")
+            ax.annotate(_dlabel,xy=(current_dt,current_dd),xytext=(_cxoff,10),
+                        textcoords="offset points",fontsize=7.5,color=_dcol,fontweight="bold",
+                        bbox=dict(boxstyle="round,pad=0.3",
+                                  facecolor="#1A0000" if _in_dd else "#001A08",
+                                  edgecolor=_dcol,alpha=0.85),
+                        arrowprops=dict(arrowstyle="->",color=_dcol,lw=1))
         else:
             ax.text(0.5,0.5,f"Max Drawdown: {max_dd:.2%}",ha="center",va="center",
                     fontsize=14,fontweight="bold",transform=ax.transAxes,color=C_RED)
         ax.axhline(0,color="#AAAAAA",lw=0.8)
         ax.set_xlabel("Date",fontsize=9); ax.set_ylabel("Drawdown (%)",fontsize=9)
-        ax.set_title("Portfolio Drawdown — Peak-to-Trough Decline",fontsize=10,fontweight="bold",color=C_NAVY,pad=8)
+        ax.set_title("Portfolio Drawdown — Peak-to-Trough Decline",
+                     fontsize=10,fontweight="bold",color=C_NAVY,pad=8)
+        ax.legend(fontsize=7.5,frameon=False)
         _styled(fig,ax); plt.tight_layout(pad=1.2); return fig
 
     def _chart_kde():
@@ -2997,15 +3018,20 @@ def create_institutional_pdf(
     _worst_stock  = "N/A"
     _var_cover    = "N/A"
     try:
-        if benchmark_data is not None and len(benchmark_data) > 1:
-            _bm_clean = benchmark_data.dropna()
-            if len(_bm_clean) > 1:
-                _bm_s = float(_bm_clean.iloc[0])
-                _bm_e = float(_bm_clean.iloc[-1])
-                if _bm_s > 0:
-                    _bm_pct = (_bm_e / _bm_s - 1) * 100
-                    _bm_cover_ret = f"{_bm_pct:+.2f}%"
-                    _excess_ret   = f"{total_ret - _bm_pct:+.2f}%"
+        if benchmark_data is not None:
+            _bm_raw = benchmark_data
+            ## Ensure 1D Series
+            if hasattr(_bm_raw, 'squeeze'):
+                _bm_raw = _bm_raw.squeeze()
+            if hasattr(_bm_raw, 'iloc') and len(_bm_raw) > 1:
+                _bm_clean = _bm_raw.dropna()
+                if len(_bm_clean) > 1:
+                    _bm_s = float(_bm_clean.iloc[0])
+                    _bm_e = float(_bm_clean.iloc[-1])
+                    if _bm_s > 0:
+                        _bm_pct       = (_bm_e / _bm_s - 1) * 100
+                        _bm_cover_ret = f"{_bm_pct:+.2f}%"
+                        _excess_ret   = f"{total_ret - _bm_pct:+.2f}%"
     except Exception:
         pass
     try:
@@ -3190,18 +3216,21 @@ def create_institutional_pdf(
     _r3c1 = _card("BEST PERFORMER",  _best_stock,  KPI_VAL_G)
     _r3c2 = _card("WORST PERFORMER", _worst_stock, KPI_VAL_R)
     _r3c3 = _card("VaR (1-Day)",     _var_cover,   KPI_VAL_R)
-    _beta_raw = portfolio_stats.get('beta', None)
-    _beta_str = (f"{float(_beta_raw):.4f}" if (_beta_raw is not None and str(_beta_raw) != 'nan') else "N/A")
-    _r3c4 = _card("BETA", _beta_str, KPI_VAL)
+    try:
+        _beta_raw = portfolio_stats.get('beta', None)
+        _beta_val = float(_beta_raw) if _beta_raw is not None else float('nan')
+        _beta_str = f"{_beta_val:.4f}" if _beta_val == _beta_val else "N/A"
+    except Exception:
+        _beta_str = "N/A"
 
+
+    _r3c4 = _card("BETA", _beta_str, KPI_VAL)
     _row3 = Table([[_r3c1, Spacer(0.15*cm,1), _r3c2,
                     Spacer(0.15*cm,1), _r3c3, Spacer(0.15*cm,1), _r3c4]],
                   colWidths=[_CARD_W, 0.15*cm]*3 + [_CARD_W])
     _row3.setStyle(TableStyle([("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     elements.append(_row3)
     elements.append(Spacer(1, 0.2*cm))
-
-
     ## ── Executive summary bullets ─────────────────────────────────────────────
     elements.append(HRFlowable(width=CW, thickness=0.5, color=BORDER, spaceAfter=0.1*cm))
     elements.append(Paragraph("EXECUTIVE SUMMARY", H_SUB))
