@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon May  4 22:40:06 2026
+
+@author: Ankush
+"""
+
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -523,6 +530,8 @@ ETF_BROAD_MARKET_KEYWORDS = [
     ## NOTE: "nifty etf" must NOT match "nifty it etf" or "nifty auto etf"
     ## So we keep it specific
     "nifty etf",
+    ## Catches "SBI ETF Nifty 50", "Axis ETF Nifty 50" etc where order differs
+    "etf nifty 50",
 ]
 
 ## Tier 3 — Thematic ETFs: keyword → (theme_label, proxy_benchmark)
@@ -544,8 +553,18 @@ ETF_THEMATIC_MAP = {
     ## PSU / CPSE
     "cpse":        ("PSU Theme",             "^CNXPSE"),
     "bharat 22":   ("PSU Theme",             "^CNXPSE"),
-    ## Infra / Bharat Bond
+    ## Infra
     "infrabees":   ("Industrials",           "^CNXINFRA"),
+    ## Factor / Smart Beta ETFs
+    "low vol":     ("Factor ETF",            "^CRSLDX"),
+    "low volat":   ("Factor ETF",            "^CRSLDX"),
+    "momentum":    ("Factor ETF",            "^CRSLDX"),
+    "quality":     ("Factor ETF",            "^CRSLDX"),
+    ## Consumption / India themes
+    "consumption": ("Consumption Theme",     "^CRSLDX"),
+    ## REIT / InvIT
+    "reit":        ("Real Estate",           "^CNXREALTY"),
+    "invit":       ("Real Estate",           "^CNXREALTY"),
 }
 
 ## Tier 4 — Non-equity ETFs: these are EXCLUDED from BHB
@@ -1229,6 +1248,8 @@ ETF_BROAD_MARKET_KEYWORDS = [
     ## NOTE: "nifty etf" must NOT match "nifty it etf" or "nifty auto etf"
     ## So we keep it specific
     "nifty etf",
+    ## Catches "SBI ETF Nifty 50", "Axis ETF Nifty 50" etc where order differs
+    "etf nifty 50",
 ]
 
 ## Tier 3 — Thematic ETFs: keyword → (theme_label, proxy_benchmark)
@@ -1250,8 +1271,18 @@ ETF_THEMATIC_MAP = {
     ## PSU / CPSE
     "cpse":        ("PSU Theme",             "^CNXPSE"),
     "bharat 22":   ("PSU Theme",             "^CNXPSE"),
-    ## Infra / Bharat Bond
+    ## Infra
     "infrabees":   ("Industrials",           "^CNXINFRA"),
+    ## Factor / Smart Beta ETFs
+    "low vol":     ("Factor ETF",            "^CRSLDX"),
+    "low volat":   ("Factor ETF",            "^CRSLDX"),
+    "momentum":    ("Factor ETF",            "^CRSLDX"),
+    "quality":     ("Factor ETF",            "^CRSLDX"),
+    ## Consumption / India themes
+    "consumption": ("Consumption Theme",     "^CRSLDX"),
+    ## REIT / InvIT
+    "reit":        ("Real Estate",           "^CNXREALTY"),
+    "invit":       ("Real Estate",           "^CNXREALTY"),
 }
 
 ## Tier 4 — Non-equity ETFs: these are EXCLUDED from BHB
@@ -1841,10 +1872,18 @@ def fetch_sector_return(sector_ticker, from_date, to_date):
         )
         if data.empty:
             return np.nan
+        ## Handle both MultiIndex and flat — and both "Close" / "Adj Close"
         if isinstance(data.columns, pd.MultiIndex):
-            prices = data["Close"].squeeze()
+            level0 = data.columns.get_level_values(0).unique().tolist()
+            col    = "Close" if "Close" in level0 else (
+                     "Adj Close" if "Adj Close" in level0 else level0[0])
+            prices = data[col].squeeze()
         else:
-            prices = data["Close"]
+            col    = "Close" if "Close" in data.columns else (
+                     "Adj Close" if "Adj Close" in data.columns else data.columns[0])
+            prices = data[col]
+        if isinstance(prices, pd.DataFrame):
+            prices = prices.squeeze()
         prices    = prices.dropna()
         available = prices.index[prices.index >= pd.Timestamp(from_date)]
         if len(available) < 2:
@@ -3881,11 +3920,22 @@ def create_institutional_pdf(
                 ## Show both return contribution AND stock return for clarity
                 _bt_stock_ret = float(attr_df.loc[_bi, "Stock Return"] * 100) if "Stock Return" in attr_df.columns else 0
                 _wt_stock_ret = float(attr_df.loc[_wi, "Stock Return"] * 100) if "Stock Return" in attr_df.columns else 0
+                ## Check if best/worst are ETFs — use "return" not "stock return"
+                _bt_is_etf = (
+                    attr_df.loc[_bi, "Type"].startswith("ETF")
+                    if "Type" in attr_df.columns else False
+                )
+                _wt_is_etf = (
+                    attr_df.loc[_wi, "Type"].startswith("ETF")
+                    if "Type" in attr_df.columns else False
+                )
+                _bt_ret_label = "ETF return" if _bt_is_etf else "stock return"
+                _wt_ret_label = "ETF return" if _wt_is_etf else "stock return"
                 _findings.append(
                     f"<b>Best Contributor:</b> {_bt} added <b>{_bc:+.2f}%</b> to portfolio return "
-                    f"(stock return: {_bt_stock_ret:+.2f}%). "
+                    f"({_bt_ret_label}: {_bt_stock_ret:+.2f}%). "
                     f"<b>Biggest Drag:</b> {_wt} subtracted <b>{abs(_wc):.2f}%</b> "
-                    f"(stock return: {_wt_stock_ret:+.2f}%)."
+                    f"({_wt_ret_label}: {_wt_stock_ret:+.2f}%)."
                 )
         except Exception:
             pass
@@ -3979,7 +4029,7 @@ def create_institutional_pdf(
         ("VaR / ES",f"Max loss at {portfolio_stats.get('alpha',0.95):.0%} confidence over {portfolio_stats.get('horizon',10)} day(s). Historical, Parametric (normal), Monte Carlo ({portfolio_stats.get('mc_sims',5000):,} paths)."),
         ("TWR","GIPS/SEBI standard. Eliminates cash flow timing. Each day weighted by actual portfolio composition."),
         ("BHB Attribution","Brinson-Hood-Beebower (1986). Allocation=(Wp-Wb)(Rs-Rb); Selection=Wb(Rp-Rs); Interaction=(Wp-Wb)(Rp-Rs)."),
-        ("ETF Handling","ETFs = sector allocation decisions. BHB selection effect N/A. GROWWDEFNC tracks Nifty India Defence Index."),
+        ("ETF Handling","ETFs classified into 4 tiers: Tier 1 Sector ETF (direct sector index benchmark); Tier 2 Broad Market ETF (tracks portfolio benchmark — Allocation Effect = 0 by definition); Tier 3 Thematic ETF (Nifty 500 proxy — no direct index on Yahoo Finance); Tier 4 Non-Equity ETF (Gold/Liquid/International — excluded from BHB entirely). Selection and Interaction Effects = N/A for all ETFs (passive vehicles). P&L and Return Contribution included for all ETFs regardless of tier."),
         ("Sector Data",f"Yahoo Finance sector indices. Fallback to {benchmark_name} when sector index unavailable."),
     ]:
         mr=Table([[Paragraph(mt,ParagraphStyle("MT",fontSize=7.5,fontName="Helvetica-Bold",textColor=STEEL,leading=10)),Paragraph(md,DISC_S)]],colWidths=[3.5*cm,CW-3.5*cm])
@@ -4135,7 +4185,7 @@ try:
     portfolio_beta   = np.nan
     if not benchmark_series.empty:
         bm_ret           = benchmark_series.pct_change().dropna()
-        combined         = pd.concat([port_returns, bm_ret], axis=1).dropna()
+        combined         = pd.concat([port_returns_bm, bm_ret], axis=1).dropna()
         combined.columns = ["Portfolio", "Benchmark"]
         combined         = combined.tail(beta_period_map[beta_horizon])
         portfolio_beta   = (
@@ -4924,10 +4974,16 @@ try:
                         ## Tier 4 or unknown → exclude from BHB
                         sector_ret = np.nan
                     elif etf_tier == 2:
-                        ## Tier 2 broad market → use primary benchmark
+                        ## Tier 2 broad market → ETF tracks benchmark index
+                        ## Fetch benchmark return from the ETF's buy_date to today
                         sector_ret = fetch_sector_return(
                             BENCHMARK_TICKER, buy_date, portfolio_end_date
                         )
+                        ## If fetch fails, try Nifty 500 as fallback
+                        if np.isnan(sector_ret):
+                            sector_ret = fetch_sector_return(
+                                "^CRSLDX", buy_date, portfolio_end_date
+                            )
                     else:
                         ## Tier 1 (sector) or Tier 3 (thematic proxy)
                         sector_ret = fetch_sector_return(
@@ -4949,6 +5005,13 @@ try:
                             sector_ret = fetch_sector_return(
                                 BENCHMARK_TICKER, buy_date, portfolio_end_date
                             )
+
+                ## Per-holding benchmark return — SAME date range as sector_ret
+                ## Ensures Allocation Effect uses consistent periods for all holdings
+                ## For Tier 2 ETF: bm_ret_holding = sector_ret → Allocation = exactly 0
+                bm_ret_holding = fetch_sector_return(
+                    BENCHMARK_TICKER, buy_date, portfolio_end_date
+                )
 
                 ## Benchmark weight — fetched from live sector weights, NOT hardcoded
                 bench_weight = NIFTY_SECTOR_WEIGHTS.get(sector, 0.0)
@@ -4974,6 +5037,7 @@ try:
                     "Active Weight":  weight - bench_weight,
                     "Stock Return":   stock_ret,
                     "Sector Return":  sector_ret,
+                    "BM Return":      bm_ret_holding,
                     "Difference":     (stock_ret - sector_ret)
                                       if not np.isnan(sector_ret) else np.nan,
                     "Buy Date":       buy_date.date(),
@@ -4990,9 +5054,12 @@ try:
             bm_return = 0.0
 
         if not sector_df.empty:
+            ## Use per-holding BM Return so sector_ret and bm_ret share the same date range
+            ## For Tier 2 ETF: sector_ret == bm_ret_holding → Allocation = exactly 0
+            _bm_ref = sector_df["BM Return"].fillna(bm_return) if "BM Return" in sector_df.columns else bm_return
             sector_df["Allocation Effect"] = np.where(
                 sector_df["Sector Return"].notna(),
-                sector_df["Active Weight"] * (sector_df["Sector Return"] - bm_return),
+                sector_df["Active Weight"] * (sector_df["Sector Return"] - _bm_ref),
                 np.nan
             )
             sector_df["Selection Effect"] = np.where(
@@ -5014,8 +5081,14 @@ try:
             ## Stock vs Sector table
             st.markdown("<p style='font-size:12px;font-weight:600;color:#C9D1D9;margin:12px 0 6px 0'>Stock vs Sector Comparison</p>", unsafe_allow_html=True)
             st.caption(
-                "Sector return from each stock's own buy date — fair like-for-like. "
-                "ETFs show N/A for sector return — not applicable."
+                "📌 **BHB Methodology Note:** "
+                "All returns measured from each holding's own buy date — not the portfolio start date. "
+                "This ensures like-for-like comparison: SBIN bought Oct 2024 is compared against its sector "
+                "from Oct 2024, not from when a later holding was bought. "
+                "**Broad Market ETFs (Nifty 50 ETF, Nifty 500 ETF):** Allocation Effect = 0 — "
+                "holding the benchmark itself is not an active decision (professional standard). "
+                "**Non-Equity ETFs (Gold, Liquid, Bond):** Fully excluded — no equity sector benchmark applies. "
+                "**All ETFs:** Selection & Interaction Effect = N/A — passive vehicles make no stock selection."
             )
 
             def color_diff(val):
@@ -5606,14 +5679,28 @@ border-radius:8px;font-size:11px;color:#8B949E">
         )
 
         ## ── Collect unique sectors from portfolio ────────────────────────────
+        _ETF_PSEUDO_SECTORS = {
+            "Non-Equity ETF","Broad Market ETF","ETF","Defence & Aerospace",
+            "PSU Theme","Mid Cap","Small Cap","Factor ETF","Consumption Theme",
+            "Multi Asset","Unknown ETF",
+        }
         _portfolio_sectors = []
+        _etf_holdings      = []
         _ticker_sector_map = {}
         if 'sector_df' in dir() and sector_df is not None and not sector_df.empty:
             for _, _row in sector_df.iterrows():
-                _sec = _row.get("Sector","N/A")
-                _tk  = _row.get("Ticker","")
-                if _sec and _sec not in ["N/A","Unknown"] and _sec not in _portfolio_sectors:
-                    _portfolio_sectors.append(_sec)
+                _sec  = _row.get("Sector","N/A")
+                _tk   = _row.get("Ticker","")
+                _is_e = _row.get("Is ETF", False)
+                _tier = _row.get("ETF Tier", 0)
+                if _is_e:
+                    _etf_holdings.append({
+                        "ticker": _tk, "sector": _sec, "tier": _tier,
+                        "type": _row.get("Type","ETF"), "attrBM": _row.get("Attribution BM",""),
+                    })
+                elif _sec and _sec not in ["N/A","Unknown"] and _sec not in _ETF_PSEUDO_SECTORS:
+                    if _sec not in _portfolio_sectors:
+                        _portfolio_sectors.append(_sec)
                 if _tk:
                     _ticker_sector_map[_tk] = _sec
         else:
@@ -5627,6 +5714,81 @@ border-radius:8px;font-size:11px;color:#8B949E">
                 if _sec and _sec not in ["Unknown","N/A"] and _sec not in _portfolio_sectors:
                     _portfolio_sectors.append(_sec)
                 _ticker_sector_map[_tk] = _sec
+
+
+        ## ── ETF Holdings Summary ─────────────────────────────────────────────────
+        if _etf_holdings:
+            st.markdown(
+                "<p style='font-size:13px;font-weight:600;color:#C8A951;margin:12px 0 6px 0'>"
+                "&#9632; ETF Holdings in your Portfolio</p>",
+                unsafe_allow_html=True
+            )
+            _tier_desc = {
+                1: ("Sector ETF",
+                    "Tracks a specific sector index. Attribution benchmark = sector index."),
+                2: ("Broad Market ETF",
+                    "Tracks the portfolio benchmark. Allocation Effect = 0 — "
+                    "holding the benchmark itself is not an active bet."),
+                3: ("Thematic ETF",
+                    "Tracks a thematic index (Defence, PSU, Midcap etc). "
+                    "Attribution benchmark = Nifty 500 proxy."),
+                4: ("Excluded ETF",
+                    "Non-equity ETF (Gold, Silver, Liquid, International). "
+                    "Excluded from BHB attribution — no equity benchmark applies."),
+            }
+            for _etf in _etf_holdings:
+                _t      = _etf["ticker"].replace(".NS","").replace(".BO","")
+                _ticker = _etf["ticker"]
+                _tier   = _etf.get("tier", 4)
+                _sec    = _etf.get("sector", "ETF")
+                _attrBM = _etf.get("attrBM", "")
+                _color  = {1:"#1D9E75",2:"#2979FF",3:"#C8A951",4:"#8B949E"}.get(_tier,"#8B949E")
+                _etf_def = ETF_DEFINITIONS.get(_ticker, {})
+                _tracks  = _etf_def.get("tracks", "")
+                _label, _ = _tier_desc.get(_tier, ("ETF",""))
+                if _tier == 1:
+                    _desc = (
+                        f"Sector: <b>{_sec}</b>. "
+                        + (f"Tracks: <b>{_tracks}</b>. " if _tracks else "")
+                        + f"Attribution benchmark: <b>{_attrBM}</b> (direct sector index). "
+                        + "Selection Effect = N/A."
+                    )
+                elif _tier == 2:
+                    _desc = (
+                        f"Tracks: <b>{_tracks or 'Broad Market Index'}</b>. "
+                        + "Allocation Effect = <b>0.00%</b> — holding the benchmark "
+                        + "is not an active decision (professional BHB standard). "
+                        + "Selection and Interaction = N/A."
+                    )
+                elif _tier == 3:
+                    _desc = (
+                        f"Theme: <b>{_sec}</b>. "
+                        + (f"Tracks: <b>{_tracks}</b>. " if _tracks else "")
+                        + f"Attribution benchmark: <b>{_attrBM or 'Nifty 500 (Proxy)'}</b>. "
+                        + "Selection and Interaction = N/A."
+                    )
+                else:
+                    _desc = (
+                        f"Category: <b>{_sec}</b>. "
+                        + (f"Tracks: <b>{_tracks}</b>. " if _tracks else "")
+                        + "<b>Excluded from BHB attribution</b> — no equity benchmark applies. "
+                        + "P&L and Return Contribution still included in all portfolio calculations."
+                    )
+                st.markdown(
+                    f"<div style='padding:10px 14px;margin-bottom:8px;"
+                    f"background:#161B22;border-left:3px solid {_color};"
+                    f"border-radius:0 8px 8px 0'>"
+                    f"<div style='display:flex;align-items:center;gap:10px'>"
+                    f"<span style='color:#F3F6FA;font-weight:700;font-size:13px'>{_t}</span>"
+                    f"<span style='color:{_color};font-size:11px;background:rgba(255,255,255,0.05);"
+                    f"padding:2px 8px;border-radius:10px'>Tier {_tier} — {_label}</span>"
+                    f"</div>"
+                    f"<div style='color:#8B949E;font-size:11px;margin-top:4px'>{_desc}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+            st.markdown("---")
+
 
         if not _portfolio_sectors:
             st.info("Sector data not available. Please ensure tickers are valid NSE/BSE stocks.")
@@ -5792,9 +5954,19 @@ border-radius:8px;font-size:11px;color:#8B949E">
         _risk_df_pdf  = risk_df  if 'risk_df'  in locals() else pd.DataFrame()
         _attr_df_pdf  = attr_df  if 'attr_df'  in locals() else pd.DataFrame()
         _sect_df_pdf  = sector_df if 'sector_df' in locals() else None
-        _bm_pdf       = (benchmark_series
-                         if 'benchmark_series' in locals()
-                         and not benchmark_series.empty else None)
+        ## Pass benchmark price series to PDF for KPI cards
+        try:
+            if 'benchmark_series' in locals() and benchmark_series is not None and not benchmark_series.empty:
+                _bm_tmp = benchmark_series.dropna()
+                ## Ensure 1D Series (not DataFrame)
+                if isinstance(_bm_tmp, pd.DataFrame):
+                    _bm_tmp = _bm_tmp.iloc[:, 0]
+                _bm_tmp = _bm_tmp.squeeze()
+                _bm_pdf = _bm_tmp if len(_bm_tmp) > 1 else None
+            else:
+                _bm_pdf = None
+        except Exception:
+            _bm_pdf = None
         try:
             _quote_text, _quote_author = get_quote_of_day()
         except Exception:
