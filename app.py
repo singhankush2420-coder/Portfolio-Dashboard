@@ -13,6 +13,7 @@ import io
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import warnings
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 from matplotlib.patches import Patch
@@ -417,7 +418,7 @@ st.sidebar.markdown("**Benchmark**")
 BENCHMARK_OPTIONS = {
     "Auto-detect (Recommended)":  None,
     "Nifty 50 (NSE Large Cap)":   ("^NSEI",       "Nifty 50"),
-    "Nifty Midcap 150 (NSE Mid)": ("^NSEMDCP150", "Nifty Midcap 150"),
+    "Nifty Midcap 150 (NSE Mid)": ("^CNXMIDCAP", "Nifty Midcap 150"),
     "Nifty 500 (NSE Broad)":      ("^CRSLDX",     "Nifty 500"),
     "Sensex (BSE Large Cap)":     ("^BSESN",      "Sensex"),
     "BSE Midcap":                 ("^BSEMDCP",    "BSE Midcap"),
@@ -546,8 +547,8 @@ ETF_THEMATIC_MAP = {
     "mobility":    ("Mobility / EV",         "^CRSLDX"),
     "ev ":         ("EV / Clean Energy",     "^CRSLDX"),
     "electric":    ("EV / Clean Energy",     "^CRSLDX"),
-    "midcap":      ("Mid Cap",               "^NSEMDCP150"),
-    "mid cap":     ("Mid Cap",               "^NSEMDCP150"),
+    "midcap":      ("Mid Cap",               "^CNXMIDCAP"),
+    "mid cap":     ("Mid Cap",               "^CNXMIDCAP"),
     "smallcap":    ("Small Cap",             "^CRSLDX"),
     "small cap":   ("Small Cap",             "^CRSLDX"),
     ## PSU / CPSE
@@ -935,7 +936,7 @@ else:
     with st.form("holdings_form"):
         holdings_df = st.data_editor(
             st.session_state["holdings_df"],
-            num_rows="fixed", use_container_width=True,
+            num_rows="fixed",
             hide_index=True 
         )
         submitted = st.form_submit_button("✅ Start Porfolio Analysis")
@@ -1127,7 +1128,7 @@ _BSE500_WEIGHTS = {
 ## ── Master lookup — indexed by benchmark ticker ──────────────────────────────
 BENCHMARK_SECTOR_WEIGHTS = {
     "^NSEI":       {"name": "Nifty 50",        "updated": "May 2026", "weights": _NIFTY50_WEIGHTS},
-    "^NSEMDCP150": {"name": "Nifty Midcap 150","updated": "May 2026", "weights": _NIFTY_MIDCAP150_WEIGHTS},
+    "^CNXMIDCAP": {"name": "Nifty Midcap 150","updated": "May 2026", "weights": _NIFTY_MIDCAP150_WEIGHTS},
     "^CRSLDX":     {"name": "Nifty 500",       "updated": "May 2026", "weights": _NIFTY500_WEIGHTS},
     "^BSESN":      {"name": "Sensex",          "updated": "May 2026", "weights": _SENSEX_WEIGHTS},
     "^BSEMDCP":    {"name": "BSE Midcap",      "updated": "May 2026", "weights": _BSE_MIDCAP_WEIGHTS},
@@ -1150,7 +1151,7 @@ NSE_SECTOR_INDEX_TICKERS = {
     ## ^CNXTelecom does NOT exist on Yahoo Finance — use ^CNXSERVICE
     "Communication Services": "^CNXSERVICE",
     "Technology":             "^CNXIT",
-    "Financial Services":     "^CNXFIN",
+    "Financial Services":     "^CNXFINANCE",
     "Energy":                 "^CNXENERGY",
     "Consumer Cyclical":      "^CNXAUTO",
     "Healthcare":             "^CNXPHARMA",
@@ -1264,8 +1265,8 @@ ETF_THEMATIC_MAP = {
     "mobility":    ("Mobility / EV",         "^CRSLDX"),
     "ev ":         ("EV / Clean Energy",     "^CRSLDX"),
     "electric":    ("EV / Clean Energy",     "^CRSLDX"),
-    "midcap":      ("Mid Cap",               "^NSEMDCP150"),
-    "mid cap":     ("Mid Cap",               "^NSEMDCP150"),
+    "midcap":      ("Mid Cap",               "^CNXMIDCAP"),
+    "mid cap":     ("Mid Cap",               "^CNXMIDCAP"),
     "smallcap":    ("Small Cap",             "^CRSLDX"),
     "small cap":   ("Small Cap",             "^CRSLDX"),
     ## PSU / CPSE
@@ -1688,7 +1689,7 @@ def detect_portfolio_benchmark(enriched_rows):
         if dominant_cap == "Large Cap":
             return "^NSEI",       "Nifty 50",               "NSE"
         elif dominant_cap == "Mid/Small Cap":
-            return "^NSEMDCP150", "Nifty Midcap 150",       "NSE"
+            return "^CNXMIDCAP", "Nifty Midcap 150",       "NSE"
         else:
             return "^CRSLDX",     "Nifty 500",              "NSE"
 
@@ -1715,7 +1716,7 @@ def fetch_top5_in_sector(sector_name, exchange="NSE", exclude_tickers=None):
         ],
         "Financial Services": [
             "HDFCBANK.NS","ICICIBANK.NS","KOTAKBANK.NS","SBIN.NS","AXISBANK.NS",
-            "BAJFINANCE.NS","BAJAJFINSV.NS","HDFC.NS","SBILIFE.NS","HDFCLIFE.NS",
+            "BAJFINANCE.NS","BAJAJFINSV.NS","HDFCAMC.NS","SBILIFE.NS","HDFCLIFE.NS",
         ],
         "Energy": [
             "RELIANCE.NS","ONGC.NS","BPCL.NS","IOC.NS","HINDPETRO.NS",
@@ -1743,7 +1744,7 @@ def fetch_top5_in_sector(sector_name, exchange="NSE", exclude_tickers=None):
         ],
         "Utilities": [
             "POWERGRID.NS","NTPC.NS","ADANIGREEN.NS","TATAPOWER.NS","TORNTPOWER.NS",
-            "CESC.NS","PGCIL.NS","NHPC.NS","SJVN.NS",
+            "CESC.NS","NHPC.NS","SJVN.NS",
         ],
         "Real Estate": [
             "DLF.NS","GODREJPROP.NS","OBEROIRLTY.NS","PRESTIGE.NS","BRIGADE.NS",
@@ -2414,6 +2415,8 @@ def create_institutional_pdf(
 ):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.patches as _mpatches
+    import warnings
+    warnings.filterwarnings("ignore", message="Tight layout not applied")
 
     ## ── PDF palette ─────────────────────────────────────────────────────────
     DARK_NAVY    = rl_colors.HexColor("#0A1628")
@@ -4150,6 +4153,11 @@ st.markdown(
 ## ─────────────────────────────────────────────────────────────────────────────
 try:
     prices = fetch_price_history(tickers, portfolio_start_date, portfolio_end_date)
+
+
+
+
+
     if prices.empty:
         st.error(
             "⚠️ No price data returned for your tickers. "
@@ -4187,6 +4195,11 @@ try:
     total_invested                = holdings_df["Invested Value"].sum()
     total_current                 = holdings_df["Current Value"].sum()
     holdings_df["P&L"]            = holdings_df["Current Value"] - holdings_df["Invested Value"]
+    ## Guard: if total current value is zero, stop gracefully
+    if total_current <= 0:
+        st.error("⚠️ Current portfolio value is zero or negative. Please check your holdings.")
+        st.stop()
+
     holdings_df["Return %"]       = (holdings_df["P&L"] / holdings_df["Invested Value"]) * 100
     total_pnl                     = holdings_df["P&L"].sum()
     portfolio_value               = total_current
@@ -5109,16 +5122,66 @@ try:
 
             ## Stock vs Sector table
             st.markdown("<p style='font-size:12px;font-weight:600;color:#C9D1D9;margin:12px 0 6px 0'>Stock vs Sector Comparison</p>", unsafe_allow_html=True)
-            st.caption(
+            ## Build dynamic caption based on what is actually in the portfolio
+            _has_tier2 = (
+                'sector_df' in dir() and sector_df is not None and
+                not sector_df.empty and "ETF Tier" in sector_df.columns and
+                (sector_df["ETF Tier"] == 2).any()
+            )
+            _has_tier4 = (
+                'sector_df' in dir() and sector_df is not None and
+                not sector_df.empty and "ETF Tier" in sector_df.columns and
+                (sector_df["ETF Tier"] == 4).any()
+            )
+            _has_any_etf = (
+                'sector_df' in dir() and sector_df is not None and
+                not sector_df.empty and "Is ETF" in sector_df.columns and
+                sector_df["Is ETF"].any()
+            )
+            ## Get earliest stock (non-ETF) buy date for the example
+            _earliest_ticker = ""
+            _earliest_date   = ""
+            if 'sector_df' in dir() and sector_df is not None and not sector_df.empty:
+                _stocks_df = sector_df[~sector_df["Is ETF"]] if "Is ETF" in sector_df.columns else sector_df
+                if not _stocks_df.empty and "Buy Date" in _stocks_df.columns:
+                    _ei = _stocks_df.loc[_stocks_df["Buy Date"].idxmin()]
+                    _earliest_ticker = str(_ei["Ticker"]).replace(".NS","").replace(".BO","")
+                    _earliest_date   = str(_ei["Buy Date"])
+
+            _caption_parts = [
                 "📌 **BHB Methodology Note:** "
                 "All returns measured from each holding's own buy date — not the portfolio start date. "
-                "This ensures like-for-like comparison: SBIN bought Oct 2024 is compared against its sector "
-                "from Oct 2024, not from when a later holding was bought. "
-                "**Broad Market ETFs (Nifty 50 ETF, Nifty 500 ETF):** Allocation Effect = 0 — "
-                "holding the benchmark itself is not an active decision (professional standard). "
-                "**Non-Equity ETFs (Gold, Liquid, Bond):** Fully excluded — no equity sector benchmark applies. "
-                "**All ETFs:** Selection & Interaction Effect = N/A — passive vehicles make no stock selection."
-            )
+                + (
+                    f"For example: **{_earliest_ticker}** (bought {_earliest_date}) is compared "
+                    f"against its sector from {_earliest_date}, not from when a later holding was bought. "
+                    if _earliest_ticker else
+                    "This ensures like-for-like comparison across all holdings. "
+                )
+            ]
+            if _has_tier2:
+                ## Get actual Tier 2 ETF names
+                _t2_names = ", ".join(
+                    sector_df[sector_df["ETF Tier"]==2]["Ticker"]
+                    .str.replace(".NS","").str.replace(".BO","").tolist()
+                )
+                _caption_parts.append(
+                    f"**Broad Market ETFs ({_t2_names}):** Allocation Effect = 0 — "
+                    "holding the benchmark index itself is not an active allocation decision (professional BHB standard). "
+                )
+            if _has_tier4:
+                _t4_names = ", ".join(
+                    sector_df[sector_df["ETF Tier"]==4]["Ticker"]
+                    .str.replace(".NS","").str.replace(".BO","").tolist()
+                )
+                _caption_parts.append(
+                    f"**Non-Equity ETFs ({_t4_names}):** Fully excluded — no equity benchmark applies. "
+                )
+            if _has_any_etf:
+                _caption_parts.append(
+                    "**All ETFs:** Selection & Interaction Effect = N/A — passive vehicles make no stock selection."
+                )
+
+            st.caption("".join(_caption_parts))
 
             def color_diff(val):
                 if pd.isna(val): return ""
@@ -5146,8 +5209,7 @@ try:
             st.caption(
                 f"Allocation = overweight right sector vs {BENCHMARK_NAME} | "
                 "Selection = right stock within sector | "
-                "Interaction = both combined | "
-                "N/A = ETF or sector data unavailable"
+                "Interaction = both combined"
             )
             st.dataframe(
                 sector_df[[
