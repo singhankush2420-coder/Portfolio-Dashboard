@@ -5,6 +5,7 @@ Created on Mon May  4 22:40:06 2026
 @author: Ankush
 """
 
+
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -30,6 +31,11 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas as rl_canvas
 from streamlit_autorefresh import st_autorefresh
+
+## ── Suppress matplotlib tight_layout warnings globally ─────────────────────
+import warnings as _warnings
+_warnings.filterwarnings("ignore", message="Tight layout not applied")
+_warnings.filterwarnings("ignore", message=".*tight_layout.*")
 
 ## ─────────────────────────────────────────────────────────────────────────────
 ##  PAGE CONFIG
@@ -418,11 +424,11 @@ st.sidebar.markdown("**Benchmark**")
 BENCHMARK_OPTIONS = {
     "Auto-detect (Recommended)":  None,
     "Nifty 50 (NSE Large Cap)":   ("^NSEI",       "Nifty 50"),
-    "Nifty Midcap 150 (NSE Mid)": ("^CNXMIDCAP", "Nifty Midcap 150"),
-    "Nifty 500 (NSE Broad)":      ("^CRSLDX",     "Nifty 500"),
+    "Nifty Midcap 150 (NSE Mid)": ("NIFTYMIDCAP150.NS", "Nifty Midcap 150"),
+    "Nifty 500 (NSE Broad)":      ("NIFTY_500.NS",          "Nifty 500"),
     "Sensex (BSE Large Cap)":     ("^BSESN",      "Sensex"),
-    "BSE Midcap":                 ("^BSEMDCP",    "BSE Midcap"),
-    "BSE 500":                    ("^BSE500",     "BSE 500"),
+    "BSE Midcap":                 ("BSE-MIDCAP.BO",    "BSE Midcap"),
+    "BSE 500":                    ("BSE-500.BO",     "BSE 500"),
 }
 selected_benchmark_label = st.sidebar.selectbox(
     "Benchmark Index",
@@ -539,30 +545,30 @@ ETF_BROAD_MARKET_KEYWORDS = [
 ## Proxy = Nifty 500 (broadest available on Yahoo Finance)
 ## Label shown to user: "Nifty 500 (Proxy)" — transparent about limitation
 ETF_THEMATIC_MAP = {
-    "defence":     ("Defence & Aerospace",   "^CRSLDX"),
-    "defense":     ("Defence & Aerospace",   "^CRSLDX"),
+    "defence":     ("Defence & Aerospace",   "NIFTY_500.NS"),
+    "defense":     ("Defence & Aerospace",   "NIFTY_500.NS"),
     "psu":         ("PSU Theme",             "^CNXPSE"),
     "public sector":("PSU Theme",            "^CNXPSE"),
-    "manufactur":  ("Manufacturing",         "^CRSLDX"),
-    "mobility":    ("Mobility / EV",         "^CRSLDX"),
-    "ev ":         ("EV / Clean Energy",     "^CRSLDX"),
-    "electric":    ("EV / Clean Energy",     "^CRSLDX"),
-    "midcap":      ("Mid Cap",               "^CNXMIDCAP"),
-    "mid cap":     ("Mid Cap",               "^CNXMIDCAP"),
-    "smallcap":    ("Small Cap",             "^CRSLDX"),
-    "small cap":   ("Small Cap",             "^CRSLDX"),
+    "manufactur":  ("Manufacturing",         "NIFTY_500.NS"),
+    "mobility":    ("Mobility / EV",         "NIFTYMIDCAP150.NS"),
+    "ev ":         ("EV / Clean Energy",     "NIFTYMIDCAP150.NS"),
+    "electric":    ("EV / Clean Energy",     "NIFTYMIDCAP150.NS"),
+    "midcap":      ("Mid Cap",               "NIFTYMIDCAP150.NS"),
+    "mid cap":     ("Mid Cap",               "NIFTYMIDCAP150.NS"),
+    "smallcap":    ("Small Cap",             "NIFTY_500.NS"),
+    "small cap":   ("Small Cap",             "NIFTY_500.NS"),
     ## PSU / CPSE
     "cpse":        ("PSU Theme",             "^CNXPSE"),
     "bharat 22":   ("PSU Theme",             "^CNXPSE"),
     ## Infra
     "infrabees":   ("Industrials",           "^CNXINFRA"),
     ## Factor / Smart Beta ETFs
-    "low vol":     ("Factor ETF",            "^CRSLDX"),
-    "low volat":   ("Factor ETF",            "^CRSLDX"),
-    "momentum":    ("Factor ETF",            "^CRSLDX"),
-    "quality":     ("Factor ETF",            "^CRSLDX"),
+    "low vol":     ("Factor ETF",            "NIFTY_500.NS"),
+    "low volat":   ("Factor ETF",            "NIFTY_500.NS"),
+    "momentum":    ("Factor ETF",            "NIFTY_500.NS"),
+    "quality":     ("Factor ETF",            "NIFTY_500.NS"),
     ## Consumption / India themes
-    "consumption": ("Consumption Theme",     "^CRSLDX"),
+    "consumption": ("Consumption Theme",     "NIFTY_500.NS"),
     ## REIT / InvIT
     "reit":        ("Real Estate",           "^CNXREALTY"),
     "invit":       ("Real Estate",           "^CNXREALTY"),
@@ -585,13 +591,13 @@ ETF_DEFINITIONS = {
     "GROWWDEFNC.NS": {
         "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
         "is_etf": True, "tracks": "Nifty India Defence Index",
-        "etf_tier": 3, "attribution_bm": "^CRSLDX",
+        "etf_tier": 3, "attribution_bm": "NIFTY_500.NS",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     "MODEFENCE.NS": {
         "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
         "is_etf": True, "tracks": "Nifty India Defence Index",
-        "etf_tier": 3, "attribution_bm": "^CRSLDX",
+        "etf_tier": 3, "attribution_bm": "NIFTY_500.NS",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     ## ── Nifty 50 ETFs (Tier 2 Broad Market) ─────────────────────────────────
@@ -824,9 +830,10 @@ def enrich_info(raw_ticker):
     ## Large Cap: Top 100 companies  ≈ market cap > ₹20,000 Cr (200B)
     ## Mid Cap:   101–250            ≈ ₹5,000 Cr – ₹20,000 Cr
     ## Small Cap: 251+               ≈ < ₹5,000 Cr
-    if market_cap >= 200_000_000_000:
+    ## SEBI/AMFI Jan 2025: Large Cap = top 100 (≈₹29,000Cr+), Mid = 101-250 (≈₹8,500Cr+)
+    if market_cap >= 290_000_000_000:    ## ₹29,000 Cr
         cap_cat = "Large Cap"
-    elif market_cap >= 50_000_000_000:
+    elif market_cap >= 85_000_000_000:   ## ₹8,500 Cr
         cap_cat = "Mid Cap"
     elif market_cap > 0:
         cap_cat = "Small Cap"
@@ -1128,11 +1135,11 @@ _BSE500_WEIGHTS = {
 ## ── Master lookup — indexed by benchmark ticker ──────────────────────────────
 BENCHMARK_SECTOR_WEIGHTS = {
     "^NSEI":       {"name": "Nifty 50",        "updated": "May 2026", "weights": _NIFTY50_WEIGHTS},
-    "^CNXMIDCAP": {"name": "Nifty Midcap 150","updated": "May 2026", "weights": _NIFTY_MIDCAP150_WEIGHTS},
-    "^CRSLDX":     {"name": "Nifty 500",       "updated": "May 2026", "weights": _NIFTY500_WEIGHTS},
+    "NIFTY_500.NS": {"name": "Nifty 500","updated": "May 2026", "weights": _NIFTY500_WEIGHTS},
+    "NIFTYMIDCAP150.NS":     {"name": "Nifty Midcap 150",       "updated": "May 2026", "weights": _NIFTY_MIDCAP150_WEIGHTS},
     "^BSESN":      {"name": "Sensex",          "updated": "May 2026", "weights": _SENSEX_WEIGHTS},
-    "^BSEMDCP":    {"name": "BSE Midcap",      "updated": "May 2026", "weights": _BSE_MIDCAP_WEIGHTS},
-    "^BSE500":     {"name": "BSE 500",         "updated": "May 2026", "weights": _BSE500_WEIGHTS},
+    "BSE-MIDCAP.BO":    {"name": "BSE Midcap",      "updated": "May 2026", "weights": _BSE_MIDCAP_WEIGHTS},
+    "BSE-500.BO":     {"name": "BSE 500",         "updated": "May 2026", "weights": _BSE500_WEIGHTS},
 }
 
 ## ── Backwards-compatible alias — always points to selected benchmark ──────────
@@ -1146,12 +1153,12 @@ NIFTY_SECTOR_WEIGHTS = _NIFTY50_WEIGHTS  ## default until runtime
 ##      BHARTIARTL.BO → Yahoo sector "Communication Services" → BSE-TECK.BO (BSE)
 ## ══════════════════════════════════════════════════════════════════════════════
 
-## ── NSE sector indices (used when BENCHMARK_TICKER starts with ^NSEI / ^NSE / ^CNX / ^CRSLDX)
+## ── NSE sector indices (used when BENCHMARK_TICKER starts with ^NSEI / ^NSE / ^CNX / NIFTYMIDCAP150.NS)
 NSE_SECTOR_INDEX_TICKERS = {
     ## ^CNXTelecom does NOT exist on Yahoo Finance — use ^CNXSERVICE
     "Communication Services": "^CNXSERVICE",
     "Technology":             "^CNXIT",
-    "Financial Services":     "^CNXFINANCE",
+    "Financial Services":     "^NSEBANK",
     "Energy":                 "^CNXENERGY",
     "Consumer Cyclical":      "^CNXAUTO",
     "Healthcare":             "^CNXPHARMA",
@@ -1164,22 +1171,22 @@ NSE_SECTOR_INDEX_TICKERS = {
     "Services":               "^CNXSERVICE",
 }
 
-## ── BSE sector indices (used when BENCHMARK_TICKER starts with ^BSE / ^BSESN / ^BSEMDCP)
+## ── BSE sector indices (used when BENCHMARK_TICKER starts with ^BSE / ^BSESN / BSE-MIDCAP.BO)
 ## Yahoo Finance BSE sector index tickers — verified working tickers
 BSE_SECTOR_INDEX_TICKERS = {
-    "Financial Services":     "^SPBSEBANKX",   ## BSE Bankex
-    "Technology":             "^SPBSETECK",     ## BSE Teck
-    "Healthcare":             "^SPBSEHCARE",    ## BSE Healthcare
-    "Consumer Cyclical":      "^SPBSEAUTO",     ## BSE Auto
-    "Consumer Defensive":     "^SPBSEFMCG",     ## BSE FMCG
-    "Basic Materials":        "^SPBSEMETAL",    ## BSE Metal
-    "Industrials":            "^SPBSECGDS",     ## BSE Capital Goods
-    "Energy":                 "^SPBSEOILGAS",   ## BSE Oil & Gas
-    "Real Estate":            "^SPBSEREALTY",   ## BSE Realty
-    "Utilities":              "^SPBSEPOWR",     ## BSE Power
-    "Communication Services": "^SPBSETECK",     ## BSE Teck (closest proxy)
-    "Capital Goods":          "^SPBSECGDS",     ## BSE Capital Goods
-    "Services":               "^SPBSETECK",     ## BSE Teck (closest proxy)
+    "Financial Services":     "BSE-BANK.BO",   ## BSE Bankex
+    "Technology":             "BSE-IT.BO",     ## BSE Teck
+    "Healthcare":             "BSE-HC.BO",    ## BSE Healthcare
+    "Consumer Cyclical":      "BSE-AUTO.BO",     ## BSE Auto
+    "Consumer Defensive":     "BSE-FMCG.BO",     ## BSE FMCG
+    "Basic Materials":        "BSE-METAL.BO",    ## BSE Metal
+    "Industrials":            "BSE-CG.BO",     ## BSE Capital Goods
+    "Energy":                 "BSE-OILGAS.BO",   ## BSE Oil & Gas
+    "Real Estate":            "BSE-REALTY.BO",   ## BSE Realty
+    "Utilities":              "BSE-POWER.BO",     ## BSE Power
+    "Communication Services": "BSE-IT.BO",     ## BSE Teck (closest proxy)
+    "Capital Goods":          "BSE-CG.BO",     ## BSE Capital Goods
+    "Services":               "BSE-IT.BO",     ## BSE Teck (closest proxy)
 }
 
 ## ── Backwards-compatible alias — set dynamically at runtime ──────────────────
@@ -1257,30 +1264,30 @@ ETF_BROAD_MARKET_KEYWORDS = [
 ## Proxy = Nifty 500 (broadest available on Yahoo Finance)
 ## Label shown to user: "Nifty 500 (Proxy)" — transparent about limitation
 ETF_THEMATIC_MAP = {
-    "defence":     ("Defence & Aerospace",   "^CRSLDX"),
-    "defense":     ("Defence & Aerospace",   "^CRSLDX"),
+    "defence":     ("Defence & Aerospace",   "NIFTY_500.NS"),
+    "defense":     ("Defence & Aerospace",   "NIFTY_500.NS"),
     "psu":         ("PSU Theme",             "^CNXPSE"),
     "public sector":("PSU Theme",            "^CNXPSE"),
-    "manufactur":  ("Manufacturing",         "^CRSLDX"),
-    "mobility":    ("Mobility / EV",         "^CRSLDX"),
-    "ev ":         ("EV / Clean Energy",     "^CRSLDX"),
-    "electric":    ("EV / Clean Energy",     "^CRSLDX"),
-    "midcap":      ("Mid Cap",               "^CNXMIDCAP"),
-    "mid cap":     ("Mid Cap",               "^CNXMIDCAP"),
-    "smallcap":    ("Small Cap",             "^CRSLDX"),
-    "small cap":   ("Small Cap",             "^CRSLDX"),
+    "manufactur":  ("Manufacturing",         "NIFTY_500.NS"),
+    "mobility":    ("Mobility / EV",         "NIFTYMIDCAP150.NS"),
+    "ev ":         ("EV / Clean Energy",     "NIFTYMIDCAP150.NS"),
+    "electric":    ("EV / Clean Energy",     "NIFTYMIDCAP150.NS"),
+    "midcap":      ("Mid Cap",               "NIFTYMIDCAP150.NS"),
+    "mid cap":     ("Mid Cap",               "NIFTYMIDCAP150.NS"),
+    "smallcap":    ("Small Cap",             "NIFTY_500.NS"),
+    "small cap":   ("Small Cap",             "NIFTY_500.NS"),
     ## PSU / CPSE
     "cpse":        ("PSU Theme",             "^CNXPSE"),
     "bharat 22":   ("PSU Theme",             "^CNXPSE"),
     ## Infra
     "infrabees":   ("Industrials",           "^CNXINFRA"),
     ## Factor / Smart Beta ETFs
-    "low vol":     ("Factor ETF",            "^CRSLDX"),
-    "low volat":   ("Factor ETF",            "^CRSLDX"),
-    "momentum":    ("Factor ETF",            "^CRSLDX"),
-    "quality":     ("Factor ETF",            "^CRSLDX"),
+    "low vol":     ("Factor ETF",            "NIFTY_500.NS"),
+    "low volat":   ("Factor ETF",            "NIFTY_500.NS"),
+    "momentum":    ("Factor ETF",            "NIFTY_500.NS"),
+    "quality":     ("Factor ETF",            "NIFTY_500.NS"),
     ## Consumption / India themes
-    "consumption": ("Consumption Theme",     "^CRSLDX"),
+    "consumption": ("Consumption Theme",     "NIFTY_500.NS"),
     ## REIT / InvIT
     "reit":        ("Real Estate",           "^CNXREALTY"),
     "invit":       ("Real Estate",           "^CNXREALTY"),
@@ -1303,13 +1310,13 @@ ETF_DEFINITIONS = {
     "GROWWDEFNC.NS": {
         "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
         "is_etf": True, "tracks": "Nifty India Defence Index",
-        "etf_tier": 3, "attribution_bm": "^CRSLDX",
+        "etf_tier": 3, "attribution_bm": "NIFTY_500.NS",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     "MODEFENCE.NS": {
         "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
         "is_etf": True, "tracks": "Nifty India Defence Index",
-        "etf_tier": 3, "attribution_bm": "^CRSLDX",
+        "etf_tier": 3, "attribution_bm": "NIFTY_500.NS",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     ## ── Nifty 50 ETFs (Tier 2 Broad Market) ─────────────────────────────────
@@ -1682,16 +1689,16 @@ def detect_portfolio_benchmark(enriched_rows):
         if dominant_cap == "Large Cap":
             return "^BSESN",      "Sensex (BSE 30)",       "BSE"
         elif dominant_cap == "Mid/Small Cap":
-            return "^BSEMDCP",    "BSE Midcap",             "BSE"
+            return "BSE-MIDCAP.BO",    "BSE Midcap",             "BSE"
         else:
-            return "^BSE500",     "BSE 500",                "BSE"
+            return "BSE-500.BO",     "BSE 500",                "BSE"
     else:  ## NSE
         if dominant_cap == "Large Cap":
             return "^NSEI",       "Nifty 50",               "NSE"
         elif dominant_cap == "Mid/Small Cap":
-            return "^CNXMIDCAP", "Nifty Midcap 150",       "NSE"
+            return "NIFTYMIDCAP150.NS", "Nifty Midcap 150",    "NSE"
         else:
-            return "^CRSLDX",     "Nifty 500",              "NSE"
+            return "NIFTY_500.NS",           "Nifty 500",              "NSE"
 
 
 @st.cache_data(ttl=ttl_seconds)
@@ -4104,7 +4111,7 @@ NIFTY_SECTOR_WEIGHTS = BENCHMARK_SECTOR_WEIGHTS.get(
 
 ## Switch sector index tickers based on exchange
 ## BSE benchmarks → BSE sector indices | NSE benchmarks → NSE sector indices
-_is_bse_benchmark = BENCHMARK_TICKER in ("^BSESN", "^BSEMDCP", "^BSE500")
+_is_bse_benchmark = BENCHMARK_TICKER in ("^BSESN", "BSE-MIDCAP.BO", "BSE-500.BO")
 SECTOR_INDEX_TICKERS = (
     BSE_SECTOR_INDEX_TICKERS if _is_bse_benchmark
     else NSE_SECTOR_INDEX_TICKERS
@@ -4153,10 +4160,6 @@ st.markdown(
 ## ─────────────────────────────────────────────────────────────────────────────
 try:
     prices = fetch_price_history(tickers, portfolio_start_date, portfolio_end_date)
-
-
-
-
 
     if prices.empty:
         st.error(
@@ -5024,7 +5027,7 @@ try:
                         ## If fetch fails, try Nifty 500 as fallback
                         if np.isnan(sector_ret):
                             sector_ret = fetch_sector_return(
-                                "^CRSLDX", buy_date, portfolio_end_date
+                                "NIFTYMIDCAP150.NS", buy_date, portfolio_end_date
                             )
                     else:
                         ## Tier 1 (sector) or Tier 3 (thematic proxy)
@@ -5034,7 +5037,7 @@ try:
                         if np.isnan(sector_ret):
                             ## fallback to Nifty 500 if sector index fails
                             sector_ret = fetch_sector_return(
-                                "^CRSLDX", buy_date, portfolio_end_date
+                                "NIFTYMIDCAP150.NS", buy_date, portfolio_end_date
                             )
                 else:
                     ## Regular stock — existing logic unchanged
