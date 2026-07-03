@@ -5,7 +5,6 @@ Created on Mon May  4 22:40:06 2026
 @author: Ankush
 """
 
-
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -47,6 +46,87 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
+## ── Welcome modal — shown once per session ─────────────────────────────────
+if "welcome_shown" not in st.session_state:
+    st.session_state["welcome_shown"] = False
+
+if not st.session_state["welcome_shown"]:
+    _modal_html = """
+<style>
+.piq-ov{display:flex;align-items:center;justify-content:center;padding:40px 20px;min-height:80vh;}
+.piq-md{background:#0D1117;border:0.5px solid #30363D;border-radius:12px;max-width:560px;width:100%;overflow:hidden;}
+.piq-tp{padding:32px 36px 24px;}
+.piq-br{display:flex;align-items:center;gap:8px;margin-bottom:24px;}
+.piq-dot{width:8px;height:8px;border-radius:50%;background:#C8A951;display:inline-block;}
+.piq-bn{font-size:12px;font-weight:500;color:#8B949E;letter-spacing:0.5px;}
+.piq-qm{font-size:52px;color:#C8A951;line-height:0.5;display:block;margin-bottom:10px;font-family:Georgia,serif;}
+.piq-qt{font-family:Georgia,serif;font-size:15px;color:#E6EDF3;line-height:1.75;font-style:italic;}
+.piq-sc{font-size:11px;color:#8B949E;margin-top:10px;}
+.piq-dv{width:32px;height:1px;background:#30363D;margin:20px 0;}
+.piq-bd{font-size:13px;color:#8B949E;line-height:1.75;}
+.piq-bd b{color:#E6EDF3;font-weight:500;}
+.piq-bt{padding:16px 36px 28px;}
+.piq-ds{padding:12px 14px;background:#161B22;border-radius:8px;margin-bottom:20px;border:0.5px solid #30363D;}
+.piq-ds p{font-size:10.5px;color:#6E7681;line-height:1.6;text-transform:uppercase;letter-spacing:0.3px;}
+</style>
+<div class="piq-ov"><div class="piq-md">
+<div class="piq-tp">
+<div class="piq-br"><span class="piq-dot"></span><span class="piq-bn">PORTFOLIOIQ — RISK, PERFORMANCE &amp; ATTRIBUTION</span></div>
+<span class="piq-qm">"</span>
+<p class="piq-qt">Under heaven all can see beauty as beauty only because there is ugliness. All can know good as good only because there is evil.</p>
+<p class="piq-sc">— Tao Te Ching, Chapter 2 &nbsp;·&nbsp; Laozi</p>
+<div class="piq-dv"></div>
+<p class="piq-bd">A <b>profit</b> means little without understanding the losses that were possible.<br>A <b>return</b> means little without understanding the risks that created it.<br><br>PortfolioIQ was built to uncover the story behind both.</p>
+</div>
+<div class="piq-bt">
+<div class="piq-ds"><p>THIS DASHBOARD IS FOR EDUCATIONAL PURPOSE ONLY. THIS DASHBOARD DOES NOT PROVIDE ANY INVESTMENT ADVICE.</p></div>
+</div>
+</div></div>
+"""
+    st.markdown(_modal_html, unsafe_allow_html=True)
+
+    ## Single working button — styled with golden border via CSS targeting,
+    ## positioned to visually sit inside the modal overlay using negative margin
+    st.markdown("""
+<style>
+div[data-testid="stHorizontalBlock"]:has(button[kind="secondary"]) {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: none;
+    margin-top: 0 !important;
+}
+div[data-testid="stHorizontalBlock"]:has(button[kind="secondary"]) > div {
+    pointer-events: auto;
+}
+button[kind="secondary"] {
+    border: 1px solid #C8A951 !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: #C8A951 !important;
+    font-weight: 500 !important;
+    position: relative;
+    top: -68px;
+}
+button[kind="secondary"]:hover {
+    background: rgba(200,169,81,0.08) !important;
+    color: #C8A951 !important;
+    border: 1px solid #C8A951 !important;
+}
+button[kind="secondary"] p { color: #C8A951 !important; }
+</style>
+""", unsafe_allow_html=True)
+
+    _bc = st.columns([1, 1.4, 1])
+    with _bc[1]:
+        if st.button("Begin Analysis", key="welcome_ok", use_container_width=True):
+            st.session_state["welcome_shown"] = True
+            st.rerun()
+    st.stop()
 ## ── Global CSS injection ──────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -421,14 +501,18 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**Benchmark**")
 
 ## Benchmark options — NSE and BSE
+## Per SEBI/NSE methodology: Nifty 100 = Large Cap (top 100), Midcap 150 = Mid Cap, etc.
 BENCHMARK_OPTIONS = {
-    "Auto-detect (Recommended)":  None,
-    "Nifty 50 (NSE Large Cap)":   ("^NSEI",       "Nifty 50"),
-    "Nifty Midcap 150 (NSE Mid)": ("NIFTYMIDCAP150.NS", "Nifty Midcap 150"),
-    "Nifty 500 (NSE Broad)":      ("NIFTY_500.NS",          "Nifty 500"),
-    "Sensex (BSE Large Cap)":     ("^BSESN",      "Sensex"),
-    "BSE Midcap":                 ("BSE-MIDCAP.BO",    "BSE Midcap"),
-    "BSE 500":                    ("BSE-500.BO",     "BSE 500"),
+    "Auto-detect (Recommended)":      None,
+    "Nifty 100 (NSE Large Cap)":      ("^CNX100",           "Nifty 100"),
+    "Nifty 50 (NSE Top 50)":          ("^NSEI",             "Nifty 50"),
+    "Nifty Midcap 150 (NSE Mid)":     ("NIFTYMIDCAP150.NS", "Nifty Midcap 150"),
+    "Nifty Smallcap 250 (NSE Small)": ("NIFTYSMLCAP250.NS", "Nifty Smallcap 250"),
+    "Nifty 500 (NSE Broad)":          ("NIFTY_500.NS",      "Nifty 500"),
+    "Sensex (BSE Large Cap)":         ("^BSESN",            "Sensex"),
+    "BSE Midcap":                     ("BSE-MIDCAP.BO",  "BSE Midcap"),
+    "BSE Smallcap":                   ("BSE-SMLCAP.BO",  "BSE Smallcap"),
+    "BSE 500":                        ("BSE-500.BO",     "BSE 500"),
 }
 selected_benchmark_label = st.sidebar.selectbox(
     "Benchmark Index",
@@ -790,6 +874,28 @@ _FALLBACK_QUOTES = [
     ("Do not go where the path may lead, go instead where there is no path and leave a trail.", "Ralph Waldo Emerson"),
 ]
 
+## ── AMFI Cap Classification loader ──────────────────────────────────────────
+## Source: amfi_cap_classification.csv (AMFI Jun 2026 list)
+## Per SEBI Circular Oct 6, 2017: Top 100=Large Cap, 101-250=Mid Cap, 251+=Small Cap
+## Update every January and July from: amfiindia.com/research-information/other-data
+@st.cache_data(ttl=86400*180)  ## refresh every 6 months
+def load_amfi_cap_map():
+    try:
+        import os
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "amfi_cap_classification.csv")
+        _df = pd.read_csv(_p, dtype=str).fillna("")
+        _n  = {str(r["NSE"]).strip(): r["Category"]
+               for _, r in _df.iterrows() if str(r["NSE"]).strip()}
+        _b  = {str(r["BSE"]).strip(): r["Category"]
+               for _, r in _df.iterrows() if str(r["BSE"]).strip()}
+        return _n, _b
+    except Exception:
+        return {}, {}
+
+_AMFI_NSE_MAP, _AMFI_BSE_MAP = load_amfi_cap_map()
+
+
 def enrich_info(raw_ticker):
     """
     Auto-detect exchange, resolve missing suffix, classify cap category.
@@ -826,26 +932,30 @@ def enrich_info(raw_ticker):
     ## ── Step 3: classify market cap ──────────────────────────────────────────
     market_cap = info_data.get("marketCap", 0) or 0
 
-    ## SEBI-aligned thresholds (approximate rupee values)
-    ## Large Cap: Top 100 companies  ≈ market cap > ₹20,000 Cr (200B)
-    ## Mid Cap:   101–250            ≈ ₹5,000 Cr – ₹20,000 Cr
-    ## Small Cap: 251+               ≈ < ₹5,000 Cr
-    ## SEBI/AMFI Jan 2025: Large Cap = top 100 (≈₹29,000Cr+), Mid = 101-250 (≈₹8,500Cr+)
-    if market_cap >= 290_000_000_000:    ## ₹29,000 Cr
+    ## ── Cap classification — AMFI official list (primary source) ──────────
+    ## Per SEBI Circular Oct 6, 2017: Top 100=Large, 101-250=Mid, 251+=Small
+    ## Source: amfi_cap_classification.csv (AMFI Jun 2026)
+    ## Update: every January and July from amfiindia.com
+    _base = raw.replace(".NS","").replace(".BO","")
+    _exch = "NSE" if resolved_ticker.endswith(".NS") else "BSE"
+    ## Priority 1: AMFI official classification (most accurate)
+    if _exch == "NSE" and _base in _AMFI_NSE_MAP:
+        cap_cat = _AMFI_NSE_MAP[_base]
+    elif _exch == "BSE" and _base in _AMFI_BSE_MAP:
+        cap_cat = _AMFI_BSE_MAP[_base]
+    elif _base in _AMFI_NSE_MAP:
+        cap_cat = _AMFI_NSE_MAP[_base]
+    elif _base in _AMFI_BSE_MAP:
+        cap_cat = _AMFI_BSE_MAP[_base]
+    ## Priority 2: Yahoo marketCap fallback (new IPOs not yet in AMFI list)
+    elif market_cap >= 290_000_000_000:
         cap_cat = "Large Cap"
-    elif market_cap >= 85_000_000_000:   ## ₹8,500 Cr
+    elif market_cap >= 85_000_000_000:
         cap_cat = "Mid Cap"
     elif market_cap > 0:
         cap_cat = "Small Cap"
     else:
-        ## Yahoo sometimes returns no marketCap — use known index lists as fallback
-        _base = raw.replace(".NS","").replace(".BO","")
-        if _base in _NIFTY50_TICKERS:
-            cap_cat = "Large Cap"
-        elif _base in _KNOWN_MIDCAP_TICKERS:
-            cap_cat = "Mid Cap"
-        else:
-            cap_cat = "Unknown"
+        cap_cat = "Unknown"  ## New IPO not yet classified by AMFI
 
     ## ── Step 4: detect ETF — check manual definitions first, then quoteType ──
     ## Manual definitions take priority — handles cases where Yahoo quoteType is missing
@@ -901,14 +1011,32 @@ if "holdings_df" not in st.session_state:
         "Quantity":  [0] * num_stocks
     })
 
-if len(st.session_state["holdings_df"]) != num_stocks:
-    st.session_state["holdings_df"] = pd.DataFrame({
-        "Ticker":    [""] * num_stocks,
-        "Buy Date":  [pd.Timestamp.today().date() - pd.Timedelta(days=365)] * num_stocks,
-        "Buy Price": [0.0] * num_stocks,
-        "Quantity":  [0] * num_stocks
-    })
+_cur_df  = st.session_state["holdings_df"]
+_cur_len = len(_cur_df)
 
+if _cur_len < num_stocks:
+    ## Growing — add empty rows to reach num_stocks
+    _extra = pd.DataFrame({
+        "Ticker":    [""] * (num_stocks - _cur_len),
+        "Buy Date":  [pd.Timestamp.today().date() - pd.Timedelta(days=365)] * (num_stocks - _cur_len),
+        "Buy Price": [0.0] * (num_stocks - _cur_len),
+        "Quantity":  [0] * (num_stocks - _cur_len)
+    })
+    st.session_state["holdings_df"] = pd.concat([_cur_df, _extra], ignore_index=True)
+
+elif _cur_len > num_stocks:
+    ## Shrinking — only remove EMPTY rows, never delete rows with real ticker data
+    _filled_mask = _cur_df["Ticker"].astype(str).str.strip().ne("")
+    _filled_count = _filled_mask.sum()
+    if _filled_count <= num_stocks:
+        ## Keep all filled rows + enough empty rows to reach num_stocks
+        _filled_rows = _cur_df[_filled_mask]
+        _empty_rows  = _cur_df[~_filled_mask].head(max(0, num_stocks - _filled_count))
+        st.session_state["holdings_df"] = pd.concat(
+            [_filled_rows, _empty_rows], ignore_index=True
+        )
+    ## else: more filled rows than num_stocks requested — keep all filled rows as-is
+    ## (don't delete user's actual data just because they lowered the count)
 if "show_holdings_form" not in st.session_state:
     st.session_state["show_holdings_form"] = True
 
@@ -940,6 +1068,129 @@ else:
         '<p>Add your portfolio positions — ticker, buy date, buy price, quantity</p></div>',
         unsafe_allow_html=True
     )
+
+
+    ## ── Company name search — Approach B Quick-Add ─────────────────────────
+    def _search_nse_ticker(query):
+        try:
+            import requests as _rq
+            _r = _rq.get(
+                "https://query2.finance.yahoo.com/v1/finance/search",
+                params={"q":query,"quotesCount":10,"newsCount":0,
+                        "enableFuzzyQuery":True,"region":"IN"},
+                headers={"User-Agent":"Mozilla/5.0"}, timeout=5
+            )
+            return [
+                {"name": q.get("shortname", q.get("longname","")),
+                 "ticker": q["symbol"]}
+                for q in _r.json().get("quotes",[])
+                if q.get("symbol","").endswith((".NS",".BO"))
+                and q.get("quoteType") in ("EQUITY","ETF","MUTUALFUND")
+            ]
+        except Exception:
+            return []
+
+    _TICKER_CHANGES = {
+        "HDFCNIFETF.NS":     ("HDFCNIFTY.NS",  "HDFC AMC renamed this ETF in 2023"),
+        "HDFC.NS":           ("HDFCBANK.NS",   "HDFC Ltd merged into HDFC Bank in 2023"),
+        "ZEEL.NS":           ("ZEEENT.NS",     "Zee Entertainment ticker changed"),
+        "MINDTREE.NS":       ("LTIM.NS",       "Mindtree merged into LTIMindtree in 2023"),
+        "LTECH.NS":          ("LTIM.NS",       "L&T Infotech merged into LTIMindtree"),
+        "TATAMOTORS-DVR.NS": ("TATAMOTORS.NS", "DVR shares merged with ordinary in 2021"),
+    }
+
+    for _k in ["qa_ticker","qa_name","qa_warning"]:
+        if _k not in st.session_state:
+            st.session_state[_k] = ""
+
+    st.markdown(
+        "<p style='font-size:12px;font-weight:600;color:#C8A951;margin:6px 0 3px 0'>"
+        "Search &amp; Add — find company, fill details, add to portfolio</p>",
+        unsafe_allow_html=True
+    )
+    _csearch = st.text_input(
+        "Search", placeholder="e.g. Reliance, HDFC Bank, Gold ETF...",
+        label_visibility="collapsed", key="company_search"
+    )
+    if _csearch and len(_csearch.strip()) >= 3:
+        with st.spinner("Searching..."):
+            _results = _search_nse_ticker(_csearch.strip())
+        if _results:
+            _sel = st.selectbox(
+                "Select",
+                ["select company"] + [f"{r['name']}  ({r['ticker']})" for r in _results],
+                label_visibility="collapsed", key="sel_company"
+            )
+            if _sel and _sel != "select company":
+                _raw_t = _sel.split("(")[-1].rstrip(")")
+                _raw_n = _sel.split("(")[0].strip()
+                if _raw_t in _TICKER_CHANGES:
+                    _new_t, _rsn = _TICKER_CHANGES[_raw_t]
+                    st.session_state["qa_ticker"]  = _new_t
+                    st.session_state["qa_name"]    = _raw_n
+                    st.session_state["qa_warning"] = f"Ticker changed: {_raw_t} -> {_new_t} | {_rsn}"
+                else:
+                    st.session_state["qa_ticker"]  = _raw_t
+                    st.session_state["qa_name"]    = _raw_n
+                    st.session_state["qa_warning"] = ""
+        else:
+            st.caption("No results. Try a shorter name or type the ticker directly.")
+
+    if st.session_state.get("qa_ticker"):
+        _qt = st.session_state["qa_ticker"]
+        _qn = st.session_state["qa_name"]
+        if st.session_state.get("qa_warning"):
+            st.warning(st.session_state["qa_warning"])
+        st.markdown(
+            f"<div style='padding:8px 12px;background:#161B22;"
+            f"border:0.5px solid #30363D;border-radius:8px;margin:4px 0'>"
+            f"<b style='color:#F3F6FA'>{_qn}</b>"
+            f"<code style='color:#58A6FF;margin-left:8px'>{_qt}</code></div>",
+            unsafe_allow_html=True
+        )
+        _c1,_c2,_c3,_c4 = st.columns([2,2,2,1])
+        with _c1:
+            _qprice = st.number_input("Buy Price Rs", min_value=0.01,
+                                      value=1.0, format="%.2f", key="qa_price")
+        with _c2:
+            _qqty   = st.number_input("Quantity", min_value=1,
+                                      value=1, step=1, key="qa_qty")
+        with _c3:
+            import datetime as _dt
+            _qdate  = st.date_input("Buy Date", value=_dt.date.today(), key="qa_date")
+        with _c4:
+            st.markdown("<div style='margin-top:22px'></div>", unsafe_allow_html=True)
+            _qadd   = st.button("Add", key="qa_add_btn", use_container_width=True)
+        if _qadd:
+            if _qprice <= 0:
+                st.error("Enter a valid buy price.")
+            else:
+                import pandas as pd
+                _new_row = pd.DataFrame([{
+                    "Ticker": _qt, "Buy Date": str(_qdate),
+                    "Buy Price": float(_qprice), "Quantity": int(_qqty)
+                }])
+                _df = st.session_state.get("holdings_df",
+                    pd.DataFrame(columns=["Ticker","Buy Date","Buy Price","Quantity"]))
+                _empty = _df["Ticker"].astype(str).str.strip().eq("")
+                if _empty.any():
+                    _idx = _empty.idxmax()
+                    _df.at[_idx,"Ticker"]    = _qt
+                    _df.at[_idx,"Buy Date"]  = str(_qdate)
+                    _df.at[_idx,"Buy Price"] = float(_qprice)
+                    _df.at[_idx,"Quantity"]  = int(_qqty)
+                    st.session_state["holdings_df"] = _df
+                else:
+                    st.session_state["holdings_df"] = pd.concat([_df,_new_row],ignore_index=True)
+                for _k in ["qa_ticker","qa_name","qa_warning"]:
+                    st.session_state[_k] = ""
+                st.success(f"{_qt} added to holdings table.")
+                st.rerun()
+
+    st.markdown("---")
+
+
+
     with st.form("holdings_form"):
         holdings_df = st.data_editor(
             st.session_state["holdings_df"],
@@ -1017,7 +1268,7 @@ with st.spinner("Detecting exchange and market cap for each holding..."):
 ## ─────────────────────────────────────────────────────────────────────────────
 ## RBI Repo Rate — update when RBI changes monetary policy
 ## Last changed: June 2025 to 6.00%
-RISK_FREE_ANNUAL = 0.0600
+RISK_FREE_ANNUAL = 0.0525  ## RBI Repo Rate 5.25% — unchanged, MPC Jun 5 2026
 risk_free_daily  = (1 + RISK_FREE_ANNUAL) ** (1 / 252) - 1
 
 ## ══════════════════════════════════════════════════════════════════════════════
@@ -1030,116 +1281,154 @@ risk_free_daily  = (1 + RISK_FREE_ANNUAL) ** (1 / 252) - 1
 ## ══════════════════════════════════════════════════════════════════════════════
 
 ## ── Nifty 50 — Source: NSE India Factsheet May 2026 (user-provided) ──────────
-_NIFTY50_WEIGHTS = {
-    "Financial Services":     0.3515,   ## 35.15% — Financial Services
-    "Energy":                 0.1019,   ## 10.19% — Oil Gas & Consumable Fuels
-    "Technology":             0.0848,   ## 8.48%  — Information Technology
-    "Consumer Cyclical":      0.0687,   ## 6.87%  — Automobile & Auto Components
-    "Consumer Defensive":     0.0599,   ## 5.99%  — Fast Moving Consumer Goods
-    "Communication Services": 0.0520,   ## 5.20%  — Telecommunication
-    "Basic Materials":        0.0499,   ## 4.99%  — Metals & Mining
-    "Healthcare":             0.0468,   ## 4.68%  — Healthcare
-    "Industrials":            0.0443,   ## 4.43%  — Construction
-    "Utilities":              0.0292,   ## 2.92%  — Power
-    "Consumer Services":      0.0268,   ## 2.68%  — Consumer Durables + Services
-    "Real Estate":            0.0236,   ## 2.36%  — Construction Materials
-    "Services":               0.0216,   ## 2.16%  — Services
-    "Capital Goods":          0.0136,   ## 1.36%  — Capital Goods
+_NIFTY50_WEIGHTS = {  ## Nifty 50 NSE factsheet Jun 2026
+    "Financial Services":     0.3700,
+    "Energy":                 0.0979,
+    "Industrials":            0.0812,
+    "Technology":             0.0741,
+    "Basic Materials":        0.0683,
+    "Consumer Cyclical":      0.0674,
+    "Consumer Defensive":     0.0581,
+    "Communication Services": 0.0515,
+    "Healthcare":             0.0490,
+    "Consumer Durables":      0.0275,
+    "Consumer Services":      0.0275,
+    "Utilities":              0.0273,
+}
+
+_NIFTY_SMALLCAP250_WEIGHTS = {  ## Nifty Smallcap 250 NSE factsheet Jun 2026
+    "Financial Services":     0.2231,
+    "Industrials":            0.2095,
+    "Healthcare":             0.1401,
+    "Basic Materials":        0.0993,
+    "Consumer Cyclical":      0.0924,
+    "Consumer Services":      0.0443,
+    "Technology":             0.0385,
+    "Consumer Durables":      0.0323,
+    "Consumer Defensive":     0.0317,
+    "Communication Services": 0.0280,
+    "Energy":                 0.0251,
+    "Utilities":              0.0200,
+    "Real Estate":            0.0156,
+}
+
+_NIFTY100_WEIGHTS = {  ## Nifty 100 NSE factsheet Jun 2026
+    "Financial Services":     0.3410,
+    "Industrials":            0.0988,
+    "Energy":                 0.0920,
+    "Basic Materials":        0.0758,
+    "Consumer Cyclical":      0.0707,
+    "Consumer Defensive":     0.0632,
+    "Technology":             0.0630,
+    "Healthcare":             0.0520,
+    "Communication Services": 0.0421,
+    "Utilities":              0.0415,
+    "Consumer Services":      0.0324,
+    "Consumer Durables":      0.0225,
+    "Real Estate":            0.0050,
 }
 
 ## ── Nifty Midcap 150 — Source: Dhan.co, May 2026 ────────────────────────────
-_NIFTY_MIDCAP150_WEIGHTS = {
-    "Financial Services":     0.2120,   ## 8.32% Insurance + 8.02% Fin Svcs + 5.86% Banks = ~22.2% combined
-    "Industrials":            0.1219,   ## 8.46% Capital Goods + 3.73% Industrial Products
-    "Healthcare":             0.0871,   ## 7.69% Healthcare + 1.02% Healthcare Services
-    "Consumer Cyclical":      0.0694,   ## 6.94% Automobiles
-    "Capital Markets":        0.0702,   ## 7.02% Capital Markets
-    "Utilities":              0.0420,   ## 4.20% Power
-    "Communication Services": 0.0398,   ## 3.98% Telecom
-    "Technology":             0.0376,   ## 3.76% Information Technology
-    "Consumer Defensive":     0.0181,   ## 1.81% FMCG
-    "Basic Materials":        0.0724,   ## 3.94% Metals + 3.30% Chemicals
-    "Real Estate":            0.0237,   ## 2.37% Realty
-    "Consumer Services":      0.0586,   ## 5.86% Consumer Goods
-    "Energy":                 0.0287,   ## 2.03% Oil & Gas + 0.84% Petroleum Products
-    "Retail":                 0.0358,   ## 3.58% Retail
+_NIFTY_MIDCAP150_WEIGHTS = {  ## Nifty Midcap 150 NSE factsheet Jun 2026
+    "Financial Services":     0.2864,
+    "Industrials":            0.1639,
+    "Healthcare":             0.1016,
+    "Basic Materials":        0.0791,
+    "Consumer Cyclical":      0.0764,
+    "Consumer Services":      0.0528,
+    "Technology":             0.0445,
+    "Consumer Durables":      0.0426,
+    "Consumer Defensive":     0.0414,
+    "Communication Services": 0.0305,
+    "Utilities":              0.0292,
+    "Real Estate":            0.0266,
+    "Energy":                 0.0249,
 }
 
 ## ── Nifty 500 — Source: Dhan.co, May 2026 ────────────────────────────────────
-_NIFTY500_WEIGHTS = {
-    "Financial Services":     0.2336,   ## 12.41% Banks + 7.95% Fin Svcs + 3.00% Insurance
-    "Technology":             0.0641,   ## 6.41% IT
-    "Consumer Cyclical":      0.0774,   ## 7.74% Automobiles
-    "Healthcare":             0.0563,   ## 5.63% Healthcare
-    "Industrials":            0.0644,   ## 4.08% Construction + 2.36% Aerospace & Defense
-    "Energy":                 0.0650,   ## 5.56% Petroleum + 1.55% Oil & Gas + 0.94% Energy
-    "Utilities":              0.0502,   ## 5.02% Power
-    "Basic Materials":        0.0537,   ## 5.37% Metals & Mining
-    "Communication Services": 0.0390,   ## 3.90% Telecom
-    "Consumer Defensive":     0.0264,   ## 2.64% FMCG
-    "Consumer Services":      0.0395,   ## 3.95% Consumer Goods
-    "Capital Markets":        0.0245,   ## 2.45% Capital Markets
-    "Real Estate":            0.0200,   ## ~2.0% Realty
-    "Retail":                 0.0284,   ## 2.84% Retail
+_NIFTY500_WEIGHTS = {  ## Nifty 500 NSE factsheet Jun 2026
+    "Financial Services":     0.3167,
+    "Industrials":            0.1244,
+    "Basic Materials":        0.0791,
+    "Consumer Cyclical":      0.0742,
+    "Healthcare":             0.0719,
+    "Energy":                 0.0708,
+    "Technology":             0.0565,
+    "Consumer Defensive":     0.0553,
+    "Communication Services": 0.0382,
+    "Consumer Services":      0.0380,
+    "Utilities":              0.0366,
+    "Consumer Durables":      0.0278,
+    "Real Estate":            0.0106,
 }
 
-## ── Sensex — Source: BSE India, approximate May 2026 ─────────────────────────
-## Sensex is 30 stocks — composition similar to Nifty 50 but slightly different weights
+## ── Sensex — BSE/Asia Index factsheet Jun 2026 (total 99.99%) ────────────────
 _SENSEX_WEIGHTS = {
-    "Financial Services":     0.3400,
-    "Energy":                 0.1100,
-    "Technology":             0.0900,
-    "Consumer Cyclical":      0.0700,
-    "Consumer Defensive":     0.0600,
-    "Communication Services": 0.0500,
-    "Healthcare":             0.0450,
-    "Basic Materials":        0.0500,
-    "Industrials":            0.0400,
-    "Utilities":              0.0280,
-    "Capital Goods":          0.0170,
+    "Financial Services":     0.4051,  ## 40.51%
+    "Consumer Cyclical":      0.1164,  ## 11.64%
+    "Industrials":            0.0977,  ## 9.77%  (Industrials+Services)
+    "Energy":                 0.0965,  ## 9.65%
+    "Technology":             0.0836,  ## 8.36%
+    "Communication Services": 0.0622,  ## 6.22%
+    "Consumer Defensive":     0.0514,  ## 5.14%
+    "Utilities":              0.0331,  ## 3.31%
+    "Basic Materials":        0.0317,  ## 3.17%
+    "Healthcare":             0.0222,  ## 2.22%
 }
 
-## ── BSE Midcap — Source: BSE India, approximate May 2026 ─────────────────────
+## ── BSE Midcap — BSE/Asia Index factsheet Jun 2026 (total 100.00%) ───────────
 _BSE_MIDCAP_WEIGHTS = {
-    "Financial Services":     0.2000,
-    "Industrials":            0.1200,
-    "Healthcare":             0.0900,
-    "Consumer Cyclical":      0.0700,
-    "Technology":             0.0400,
-    "Basic Materials":        0.0700,
-    "Utilities":              0.0450,
-    "Consumer Defensive":     0.0200,
-    "Communication Services": 0.0400,
-    "Real Estate":            0.0250,
-    "Consumer Services":      0.0600,
-    "Energy":                 0.0300,
+    "Financial Services":     0.2492,  ## 24.92%  (Financial Services+Diversified)
+    "Consumer Cyclical":      0.2028,  ## 20.28%
+    "Industrials":            0.1856,  ## 18.56%  (Industrials+Services)
+    "Healthcare":             0.1068,  ## 10.68%
+    "Basic Materials":        0.0994,  ## 9.94%
+    "Technology":             0.0657,  ## 6.57%
+    "Energy":                 0.0364,  ## 3.64%
+    "Consumer Defensive":     0.0257,  ## 2.57%
+    "Utilities":              0.0178,  ## 1.78%
+    "Communication Services": 0.0106,  ## 1.06%
 }
 
-## ── BSE 500 — Source: BSE India, approximate May 2026 ────────────────────────
+## ── BSE 500 — BSE/Asia Index factsheet Jun 2026 (total 99.99%) ───────────────
 _BSE500_WEIGHTS = {
-    "Financial Services":     0.2300,
-    "Technology":             0.0650,
-    "Consumer Cyclical":      0.0750,
-    "Healthcare":             0.0560,
-    "Industrials":            0.0650,
-    "Energy":                 0.0650,
-    "Utilities":              0.0500,
-    "Basic Materials":        0.0530,
-    "Communication Services": 0.0390,
-    "Consumer Defensive":     0.0260,
-    "Consumer Services":      0.0390,
-    "Real Estate":            0.0200,
-    "Retail":                 0.0280,
+    "Financial Services":     0.3114,  ## 31.14%  (Financial Services+Diversified)
+    "Consumer Cyclical":      0.1532,  ## 15.32%
+    "Industrials":            0.1264,  ## 12.64%  (Industrials+Services)
+    "Basic Materials":        0.0772,  ## 7.72%
+    "Healthcare":             0.0723,  ## 7.23%
+    "Energy":                 0.0720,  ## 7.20%
+    "Technology":             0.0575,  ## 5.75%
+    "Consumer Defensive":     0.0566,  ## 5.66%
+    "Communication Services": 0.0372,  ## 3.72%
+    "Utilities":              0.0361,  ## 3.61%
+}
+
+## ── BSE Smallcap — BSE/Asia Index factsheet Jun 2026 (total 100.00%) ─────────
+_BSE_SMALLCAP_WEIGHTS = {
+    "Industrials":            0.2632,  ## 26.32%  (Industrials+Services)
+    "Consumer Cyclical":      0.2107,  ## 21.07%
+    "Financial Services":     0.1750,  ## 17.50%  (Financial Services+Diversified)
+    "Healthcare":             0.1203,  ## 12.03%
+    "Basic Materials":        0.0929,  ## 9.29%
+    "Consumer Defensive":     0.0532,  ## 5.32%
+    "Technology":             0.0334,  ## 3.34%
+    "Utilities":              0.0238,  ## 2.38%
+    "Communication Services": 0.0159,  ## 1.59%
+    "Energy":                 0.0116,  ## 1.16%
 }
 
 ## ── Master lookup — indexed by benchmark ticker ──────────────────────────────
 BENCHMARK_SECTOR_WEIGHTS = {
+    "^CNX100":     {"name": "Nifty 100",       "updated": "Jun 2026", "weights": _NIFTY100_WEIGHTS},
     "^NSEI":       {"name": "Nifty 50",        "updated": "May 2026", "weights": _NIFTY50_WEIGHTS},
     "NIFTY_500.NS": {"name": "Nifty 500","updated": "May 2026", "weights": _NIFTY500_WEIGHTS},
+    "NIFTYSMLCAP250.NS": {"name": "Nifty Smallcap 250","updated": "Jun 2026", "weights": _NIFTY_SMALLCAP250_WEIGHTS},
     "NIFTYMIDCAP150.NS":     {"name": "Nifty Midcap 150",       "updated": "May 2026", "weights": _NIFTY_MIDCAP150_WEIGHTS},
-    "^BSESN":      {"name": "Sensex",          "updated": "May 2026", "weights": _SENSEX_WEIGHTS},
-    "BSE-MIDCAP.BO":    {"name": "BSE Midcap",      "updated": "May 2026", "weights": _BSE_MIDCAP_WEIGHTS},
-    "BSE-500.BO":     {"name": "BSE 500",         "updated": "May 2026", "weights": _BSE500_WEIGHTS},
+    "^BSESN":      {"name": "Sensex",          "updated": "Jun 2026", "weights": _SENSEX_WEIGHTS},
+    "BSE-MIDCAP.BO":    {"name": "BSE Midcap",    "updated": "Jun 2026", "weights": _BSE_MIDCAP_WEIGHTS},
+    "BSE-500.BO":       {"name": "BSE 500",       "updated": "Jun 2026", "weights": _BSE500_WEIGHTS},
+    "BSE-SMLCAP.BO":    {"name": "BSE Smallcap",  "updated": "Jun 2026", "weights": _BSE_SMALLCAP_WEIGHTS},
 }
 
 ## ── Backwards-compatible alias — always points to selected benchmark ──────────
@@ -1160,12 +1449,14 @@ NSE_SECTOR_INDEX_TICKERS = {
     "Technology":             "^CNXIT",
     "Financial Services":     "^NSEBANK",
     "Energy":                 "^CNXENERGY",
-    "Consumer Cyclical":      "^CNXAUTO",
+    "Consumer Cyclical":      "^CNXAUTO",    ## Auto proxy for Consumer Cyclical
+    "Consumer Durables":      "^CNXFMCG",    ## FMCG proxy — no dedicated Durables index on Yahoo
+    "Consumer Services":      "^CNXSERVICE", ## Services index as proxy
     "Healthcare":             "^CNXPHARMA",
     "Industrials":            "^CNXINFRA",
     "Consumer Defensive":     "^CNXFMCG",
     "Basic Materials":        "^CNXMETAL",
-    "Utilities":              "^CNXINFRA",
+    "Utilities":              "^CNXENERGY",  ## Energy/Power proxy — no dedicated Power index on Yahoo
     "Real Estate":            "^CNXREALTY",
     "Capital Goods":          "^CNXINFRA",
     "Services":               "^CNXSERVICE",
@@ -1174,19 +1465,21 @@ NSE_SECTOR_INDEX_TICKERS = {
 ## ── BSE sector indices (used when BENCHMARK_TICKER starts with ^BSE / ^BSESN / BSE-MIDCAP.BO)
 ## Yahoo Finance BSE sector index tickers — verified working tickers
 BSE_SECTOR_INDEX_TICKERS = {
-    "Financial Services":     "BSE-BANK.BO",   ## BSE Bankex
-    "Technology":             "BSE-IT.BO",     ## BSE Teck
-    "Healthcare":             "BSE-HC.BO",    ## BSE Healthcare
-    "Consumer Cyclical":      "BSE-AUTO.BO",     ## BSE Auto
-    "Consumer Defensive":     "BSE-FMCG.BO",     ## BSE FMCG
-    "Basic Materials":        "BSE-METAL.BO",    ## BSE Metal
-    "Industrials":            "BSE-CG.BO",     ## BSE Capital Goods
-    "Energy":                 "BSE-OILGAS.BO",   ## BSE Oil & Gas
-    "Real Estate":            "BSE-REALTY.BO",   ## BSE Realty
-    "Utilities":              "BSE-POWER.BO",     ## BSE Power
-    "Communication Services": "BSE-IT.BO",     ## BSE Teck (closest proxy)
-    "Capital Goods":          "BSE-CG.BO",     ## BSE Capital Goods
-    "Services":               "BSE-IT.BO",     ## BSE Teck (closest proxy)
+    "Financial Services":     "BSE-BANK.BO",    ## BSE Bankex
+    "Technology":             "BSE-IT.BO",      ## BSE IT
+    "Healthcare":             "BSE-HC.BO",      ## BSE Healthcare
+    "Consumer Cyclical":      "BSE-AUTO.BO",    ## BSE Auto
+    "Consumer Durables":      "BSE-CD.BO",      ## BSE Consumer Durables
+    "Consumer Defensive":     "BSE-FMCG.BO",   ## BSE FMCG
+    "Consumer Services":      "BSE-CG.BO",      ## BSE CG proxy — no dedicated BSE Services index
+    "Basic Materials":        "BSE-METAL.BO",   ## BSE Metal
+    "Industrials":            "BSE-CG.BO",      ## BSE Capital Goods
+    "Energy":                 "BSE-OILGAS.BO",  ## BSE Oil & Gas
+    "Real Estate":            "BSE-REALTY.BO",  ## BSE Realty
+    "Utilities":              "BSE-POWER.BO",   ## BSE Power
+    "Communication Services": "BSE-TECK.BO",   ## BSE Teck (closest proxy)
+    "Capital Goods":          "BSE-CG.BO",      ## BSE Capital Goods
+    "Services":               "BSE-TECK.BO",    ## BSE Teck proxy
 }
 
 ## ── Backwards-compatible alias — set dynamically at runtime ──────────────────
@@ -1526,23 +1819,6 @@ def get_quote_of_day():
     seed = int(datetime.date.today().strftime("%Y%m%d")) % len(_FALLBACK_QUOTES)
     return _FALLBACK_QUOTES[seed]
 
-@st.cache_data(ttl=86400)
-def get_quote_of_day():
-    try:
-        import requests as _req
-        resp = _req.get("https://zenquotes.io/api/today", timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            if data and isinstance(data, list) and "q" in data[0] and "a" in data[0]:
-                q = data[0]["q"].strip(); a = data[0]["a"].strip()
-                if len(q) > 10 and a.lower() not in ("unknown",""):
-                    return q, a
-    except Exception:
-        pass
-    import datetime
-    seed = int(datetime.date.today().strftime("%Y%m%d")) % len(_FALLBACK_QUOTES)
-    return _FALLBACK_QUOTES[seed]
-
 @st.cache_data(ttl=ttl_seconds)
 def fetch_price_history(tickers, start, end):
     ## Try with auto_adjust=True first (yfinance >= 0.2.x)
@@ -1650,7 +1926,6 @@ def fetch_sector_info(ticker):
 
 
 @st.cache_data(ttl=ttl_seconds)
-
 def detect_portfolio_benchmark(enriched_rows):
     """
     Look at the exchange and cap category of each holding (weighted by value)
@@ -1677,28 +1952,40 @@ def detect_portfolio_benchmark(enriched_rows):
     total = max(len(caps), 1)  ## use equity-only count
 
     ## Determine dominant cap type from stock portion
+    ## Per SEBI/NSE methodology: Large=top 100, Mid=101-250, Small=251+
     if large / total >= 0.6:
         dominant_cap = "Large Cap"
-    elif (mid + small) / total >= 0.6:
-        dominant_cap = "Mid/Small Cap"
+    elif mid / total >= 0.6:
+        dominant_cap = "Mid Cap"
+    elif small / total >= 0.6:
+        dominant_cap = "Small Cap"
+    elif (large + mid) / total >= 0.7:
+        dominant_cap = "Large Mid Mixed"
     else:
         dominant_cap = "Mixed"
 
     ## Pick benchmark based on exchange + cap
+    ## NSE benchmarks match SEBI cap definitions exactly per NSE methodology doc
     if dominant_exchange == "BSE":
         if dominant_cap == "Large Cap":
-            return "^BSESN",      "Sensex (BSE 30)",       "BSE"
-        elif dominant_cap == "Mid/Small Cap":
-            return "BSE-MIDCAP.BO",    "BSE Midcap",             "BSE"
+            return "^BSESN",        "Sensex (BSE 30)",        "BSE"
+        elif dominant_cap == "Mid Cap":
+            return "BSE-MIDCAP.BO", "BSE Midcap",             "BSE"
+        elif dominant_cap == "Small Cap":
+            return "BSE-SMLCAP.BO", "BSE Smallcap",            "BSE"
         else:
-            return "BSE-500.BO",     "BSE 500",                "BSE"
+            return "BSE-500.BO",    "BSE 500",                 "BSE"
     else:  ## NSE
         if dominant_cap == "Large Cap":
-            return "^NSEI",       "Nifty 50",               "NSE"
-        elif dominant_cap == "Mid/Small Cap":
+            return "^CNX100",           "Nifty 100",           "NSE"
+        elif dominant_cap == "Mid Cap":
             return "NIFTYMIDCAP150.NS", "Nifty Midcap 150",    "NSE"
+        elif dominant_cap == "Small Cap":
+            return "NIFTYSMLCAP250.NS", "Nifty Smallcap 250",  "NSE"
+        elif dominant_cap == "Large Mid Mixed":
+            return "NIFTY_500.NS",      "Nifty 500",           "NSE"
         else:
-            return "NIFTY_500.NS",           "Nifty 500",              "NSE"
+            return "NIFTY_500.NS",      "Nifty 500",           "NSE"
 
 
 @st.cache_data(ttl=ttl_seconds)
@@ -4104,14 +4391,17 @@ else:
     _auto_detected     = False
 
 ## ── Update sector weights AND sector index tickers to match benchmark ────────
+## Default fallback: Nifty 100 weights (correct SEBI Large Cap benchmark)
+_bsw_default = BENCHMARK_SECTOR_WEIGHTS.get("^CNX100", BENCHMARK_SECTOR_WEIGHTS["^NSEI"])
 NIFTY_SECTOR_WEIGHTS = BENCHMARK_SECTOR_WEIGHTS.get(
-    BENCHMARK_TICKER,
-    BENCHMARK_SECTOR_WEIGHTS["^NSEI"]
+    BENCHMARK_TICKER, _bsw_default
 )["weights"]
 
 ## Switch sector index tickers based on exchange
 ## BSE benchmarks → BSE sector indices | NSE benchmarks → NSE sector indices
-_is_bse_benchmark = BENCHMARK_TICKER in ("^BSESN", "BSE-MIDCAP.BO", "BSE-500.BO")
+_is_bse_benchmark = BENCHMARK_TICKER in (
+    "^BSESN", "BSE-MIDCAP.BO", "BSE-500.BO", "BSE-SMLCAP.BO"
+)
 SECTOR_INDEX_TICKERS = (
     BSE_SECTOR_INDEX_TICKERS if _is_bse_benchmark
     else NSE_SECTOR_INDEX_TICKERS
@@ -4160,6 +4450,10 @@ st.markdown(
 ## ─────────────────────────────────────────────────────────────────────────────
 try:
     prices = fetch_price_history(tickers, portfolio_start_date, portfolio_end_date)
+
+
+
+
 
     if prices.empty:
         st.error(
