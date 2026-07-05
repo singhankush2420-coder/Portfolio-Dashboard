@@ -2125,42 +2125,86 @@ SECTOR_NEWS_PROXIES = {
 @st.cache_data(ttl=ttl_seconds)
 def fetch_ticker_news(ticker, news_type="stock"):
     """
-    Fetch news for a stock ticker using Yahoo Finance.
-    Works on Streamlit Cloud — no API key, no rate limiting issues.
+    Fetch news for a stock ticker.
+    Primary:  Google News RSS (confirmed working on Streamlit Cloud)
+    Fallback: yf.Search() for when Google News blocks
     Returns list of dicts: title, source, published, link, query_type
-    news_type: "stock" (gold) or "sector" (blue)
     """
+    import datetime as _dt, urllib.request, urllib.parse
+    import xml.etree.ElementTree as ET
+
+    _clean  = ticker.replace(".NS","").replace(".BO","")
+    results = []
+
+    ## ── Method 1: Google News RSS (primary — best quality, India-specific) ───
     try:
-        import datetime as _dt
-        _tk_obj = yf.Ticker(ticker)
-        _raw    = _tk_obj.news or []
-        results = []
-        for item in _raw[:6]:
-            _title     = item.get("title", "")
-            _link      = item.get("link",  "") or item.get("url", "")
-            _source    = (item.get("publisher", "")
-                          or item.get("source", {}).get("name", "Yahoo Finance"))
-            _published = item.get("providerPublishTime", 0)
+        _query   = urllib.parse.quote(f"{_clean} NSE stock India")
+        _url     = (f"https://news.google.com/rss/search?"
+                    f"q={_query}&hl=en-IN&gl=IN&ceid=IN:en")
+        _req     = urllib.request.Request(_url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+            "Accept":     "application/rss+xml, application/xml, text/xml, */*",
+        })
+        with urllib.request.urlopen(_req, timeout=6) as _resp:
+            _root = ET.fromstring(_resp.read())
+        for _item in _root.findall(".//item")[:6]:
+            _title = _item.findtext("title", "")
+            _link  = _item.findtext("link",  "")
+            _src   = _item.find("{https://news.google.com/rss}source")
+            _source= _src.text if _src is not None else "Google News"
+            _pub   = _item.findtext("pubDate", "")
             try:
-                _pub_str = _dt.datetime.fromtimestamp(
-                    _published).strftime("%d %b %Y %H:%M") if _published else ""
-                _pub_ts  = int(_published) if _published else 0
+                from email.utils import parsedate_to_datetime as _pdt
+                _pub_str = _pdt(_pub).strftime("%d %b %Y %H:%M")
+                _pub_ts  = int(_pdt(_pub).timestamp())
             except Exception:
-                _pub_str = ""
+                _pub_str = _pub[:16] if _pub else ""
                 _pub_ts  = 0
             if _title:
                 results.append({
                     "title":      _title,
                     "source":     _source,
                     "published":  _pub_str,
-                    "pub_ts":     _pub_ts,   ## Unix ts for sorting
+                    "pub_ts":     _pub_ts,
                     "link":       _link,
                     "query_type": news_type,
                     "ticker":     ticker,
                 })
-        return results
     except Exception:
-        return []
+        pass
+
+    ## ── Method 2: yf.Search fallback (if Google News fails) ─────────────────
+    if not results:
+        try:
+            _s   = yf.Search(_clean, news_count=6, max_results=0)
+            _raw = _s.news or []
+            for item in _raw[:6]:
+                _title = item.get("title","") or item.get("headline","")
+                _link  = (item.get("link","")
+                          or item.get("url","")
+                          or item.get("canonicalUrl",{}).get("url",""))
+                _source = item.get("publisher","") or "Yahoo Finance"
+                _pub_ts = item.get("providerPublishTime", 0) or 0
+                try:
+                    _pub_str = (_dt.datetime.fromtimestamp(int(_pub_ts))
+                                .strftime("%d %b %Y %H:%M") if _pub_ts else "")
+                except Exception:
+                    _pub_str = ""
+                if _title:
+                    results.append({
+                        "title":      _title,
+                        "source":     _source,
+                        "published":  _pub_str,
+                        "pub_ts":     int(_pub_ts) if _pub_ts else 0,
+                        "link":       _link,
+                        "query_type": news_type,
+                        "ticker":     ticker,
+                    })
+        except Exception:
+            pass
+
+    return results
 
 
 @st.cache_data(ttl=ttl_seconds)
