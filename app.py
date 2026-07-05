@@ -2101,61 +2101,66 @@ def fetch_top5_in_sector(sector_name, exchange="NSE", exclude_tickers=None):
     return df
 
 
+## ── Sector news proxy tickers — 2 representative stocks per Yahoo Finance sector ──
+## Used to fetch sector-level context news alongside user's actual holdings
+## Proxies are major liquid NSE stocks that best represent each sector's narrative
+SECTOR_NEWS_PROXIES = {
+    "Financial Services":     ["HDFCBANK.NS",   "ICICIBANK.NS"],
+    "Technology":             ["TCS.NS",         "INFY.NS"],
+    "Energy":                 ["RELIANCE.NS",    "ONGC.NS"],
+    "Consumer Cyclical":      ["MARUTI.NS",      "TATAMOTORS.NS"],
+    "Consumer Defensive":     ["HINDUNILVR.NS",  "ITC.NS"],
+    "Healthcare":             ["SUNPHARMA.NS",   "DRREDDY.NS"],
+    "Basic Materials":        ["TATASTEEL.NS",   "HINDALCO.NS"],
+    "Industrials":            ["LT.NS",          "BEL.NS"],
+    "Communication Services": ["BHARTIARTL.NS",  "ZEEENT.NS"],
+    "Utilities":              ["NTPC.NS",        "POWERGRID.NS"],
+    "Real Estate":            ["DLF.NS",         "GODREJPROP.NS"],
+    "Consumer Durables":      ["TITAN.NS",       "VOLTAS.NS"],
+    "Consumer Services":      ["DMART.NS",       "JUBLFOOD.NS"],
+    "Capital Goods":          ["LT.NS",          "SIEMENS.NS"],
+    "Services":               ["LT.NS",          "HCLTECH.NS"],
+}
+
 @st.cache_data(ttl=ttl_seconds)
-def fetch_sector_news(sector_name, ticker, company_name=""):
+def fetch_ticker_news(ticker, news_type="stock"):
     """
-    Fetch news from Google News RSS for a sector + specific stock.
-    Returns list of dicts with keys: title, source, published, link
+    Fetch news for a stock ticker using Yahoo Finance.
+    Works on Streamlit Cloud — no API key, no rate limiting issues.
+    Returns list of dicts: title, source, published, link, query_type
+    news_type: "stock" (gold) or "sector" (blue)
     """
-    import urllib.request
-    import urllib.parse
-    import xml.etree.ElementTree as ET
-
-    ## Build focused queries
-    clean_ticker = ticker.replace(".NS","").replace(".BO","")
-    sector_kw    = sector_name.replace(" & "," ").replace("  "," ")
-
-    queries = [
-        f'"{clean_ticker}" OR "{company_name}" stock India',
-        f'"{sector_kw}" sector India stocks',
-    ]
-
-    all_items = []
-    for query in queries:
-        try:
-            encoded = urllib.parse.quote(query)
-            url     = (f"https://news.google.com/rss/search?"
-                       f"q={encoded}&hl=en-IN&gl=IN&ceid=IN:en")
-            req     = urllib.request.Request(
-                url, headers={"User-Agent": "Mozilla/5.0"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                xml_data = resp.read()
-            root = ET.fromstring(xml_data)
-            for item in root.findall(".//item")[:5]:
-                title     = item.findtext("title", "")
-                link      = item.findtext("link",  "")
-                source_el = item.find("{https://news.google.com/rss}source")
-                source    = source_el.text if source_el is not None else "Google News"
-                pub       = item.findtext("pubDate", "")
-                ## Clean up pub date
-                try:
-                    from email.utils import parsedate_to_datetime
-                    dt      = parsedate_to_datetime(pub)
-                    pub_str = dt.strftime("%d %b %Y %H:%M")
-                except Exception:
-                    pub_str = pub[:16] if pub else ""
-                all_items.append({
-                    "title":     title,
-                    "source":    source,
-                    "published": pub_str,
-                    "link":      link,
-                    "query_type": "stock" if query == queries[0] else "sector",
+    try:
+        import datetime as _dt
+        _tk_obj = yf.Ticker(ticker)
+        _raw    = _tk_obj.news or []
+        results = []
+        for item in _raw[:6]:
+            _title     = item.get("title", "")
+            _link      = item.get("link",  "") or item.get("url", "")
+            _source    = (item.get("publisher", "")
+                          or item.get("source", {}).get("name", "Yahoo Finance"))
+            _published = item.get("providerPublishTime", 0)
+            try:
+                _pub_str = _dt.datetime.fromtimestamp(
+                    _published).strftime("%d %b %Y %H:%M") if _published else ""
+                _pub_ts  = int(_published) if _published else 0
+            except Exception:
+                _pub_str = ""
+                _pub_ts  = 0
+            if _title:
+                results.append({
+                    "title":      _title,
+                    "source":     _source,
+                    "published":  _pub_str,
+                    "pub_ts":     _pub_ts,   ## Unix ts for sorting
+                    "link":       _link,
+                    "query_type": news_type,
+                    "ticker":     ticker,
                 })
-        except Exception:
-            continue
-
-    return all_items[:10]   ## max 10 items total
+        return results
+    except Exception:
+        return []
 
 
 @st.cache_data(ttl=ttl_seconds)
@@ -4531,6 +4536,9 @@ try:
             combined["Portfolio"].cov(combined["Benchmark"]) /
             combined["Benchmark"].var()
         )
+    ## ── Store in session_state so PDF button can access on rerun ─────────────
+    st.session_state["_pdf_benchmark_series"] = benchmark_series
+    st.session_state["_pdf_portfolio_beta"]   = portfolio_beta
 
     ## ── Ratios ───────────────────────────────────────────────────────────────
     _r                = port_returns_bm  ## TWR — correct series for all risk metrics
@@ -5288,15 +5296,24 @@ try:
                     is_etf   = True
                     etf_tier = etf_info.get("etf_tier", 4)
                 else:
-                    info     = fetch_sector_info(t)
-                    sector   = info["sector"]
-                    industry = info["industry"]
                     is_etf   = False
                     etf_tier = 0
+                    ## Priority 1: use sector already fetched by enrich_info
+                    ## (avoids duplicate Yahoo API call and uses cached result)
+                    sector   = _enriched.get("sector", None)
+                    industry = _enriched.get("display_name", t)
 
-                    ## Apply manual override if Yahoo returned Unknown
+                    ## Priority 2: fresh fetch if enrich_info didn't have it
                     if sector in ["Unknown", "N/A", "", None]:
-                        sector = MANUAL_SECTOR_MAP.get(t, "N/A")
+                        _info = fetch_sector_info(t)
+                        sector   = _info.get("sector", "Unknown")
+                        industry = _info.get("industry", "Unknown")
+
+                    ## Priority 3: manual override map for known problem tickers
+                    if sector in ["Unknown", "N/A", "", None]:
+                        sector = MANUAL_SECTOR_MAP.get(t, MANUAL_SECTOR_MAP.get(
+                            t.replace(".NS","").replace(".BO",""), "N/A"
+                        ))
                     if industry in ["Unknown", "N/A", "", None]:
                         industry = "N/A"
 
@@ -6266,28 +6283,49 @@ border-radius:8px;font-size:11px;color:#8B949E">
 
                     _all_news = []
 
-                    ## Stock-specific news for each holding in this sector
+                    ## ── Stock news — user's actual holdings in this sector ────
                     for _tk in _stocks_in_sector:
-                        _clean_name = enriched_info.get(_tk, {}).get("display_name", _tk)
-                        with st.spinner(f"Loading news for {_tk}..."):
-                            _news = fetch_sector_news(_sector, _tk, _clean_name)
+                        with st.spinner(f"Loading news for {_tk.replace('.NS','').replace('.BO','')}..."):
+                            _news = fetch_ticker_news(_tk, news_type="stock")
                         _all_news.extend(_news)
 
-                    ## Deduplicate by title
+                    ## ── Sector news — 2 proxy tickers (exclude held stocks) ──
+                    _held_set    = set(_stocks_in_sector)
+                    _proxies     = SECTOR_NEWS_PROXIES.get(_sector, [])
+                    _sector_proxies = [p for p in _proxies if p not in _held_set][:2]
+                    for _px in _sector_proxies:
+                        with st.spinner(f"Loading {_sector} sector news..."):
+                            _px_news = fetch_ticker_news(_px, news_type="sector")
+                        _all_news.extend(_px_news)
+
+                    ## ── Deduplicate by title, sort newest first ───────────────
                     _seen_titles = set()
                     _unique_news = []
-                    for _n in _all_news:
-                        if _n["title"] not in _seen_titles:
-                            _seen_titles.add(_n["title"])
+                    for _n in sorted(_all_news, key=lambda x: x.get("pub_ts", 0), reverse=True):
+                        _t = _n.get("title", "")
+                        if _t and _t not in _seen_titles:
+                            _seen_titles.add(_t)
                             _unique_news.append(_n)
 
                     if _unique_news:
+                        ## Legend
+                        st.markdown(
+                            "<div style='display:flex;gap:12px;margin-bottom:8px'>"
+                            "<span style='font-size:10px;color:#8EA1B4'>"
+                            "<span style='color:#C8A951;font-weight:700'>━</span>"
+                            " Your holdings</span>"
+                            "<span style='font-size:10px;color:#8EA1B4'>"
+                            "<span style='color:#58A6FF;font-weight:700'>━</span>"
+                            " Sector context</span>"
+                            "</div>",
+                            unsafe_allow_html=True
+                        )
                         for _news_item in _unique_news[:8]:
-                            _nt = _news_item.get("title","")
-                            _ns = _news_item.get("source","")
-                            _np = _news_item.get("published","")
-                            _nl = _news_item.get("link","")
-                            _ntype = _news_item.get("query_type","sector")
+                            _nt      = _news_item.get("title",     "")
+                            _ns      = _news_item.get("source",    "Yahoo Finance")
+                            _np      = _news_item.get("published", "")
+                            _nl      = _news_item.get("link",      "#")
+                            _ntype   = _news_item.get("query_type","sector")
                             _dot_col = "#C8A951" if _ntype == "stock" else "#58A6FF"
                             st.markdown(
                                 f"<div style='padding:7px 10px;border:1px solid "
@@ -6306,8 +6344,8 @@ border-radius:8px;font-size:11px;color:#8B949E">
                         st.markdown(
                             "<div style='padding:10px;background:#0D1723;"
                             "border:1px solid #21262D;border-radius:8px;"
-                            "font-size:12px;color:#8EA1B4'>No news available. "
-                            "Check your internet connection.</div>",
+                            "font-size:12px;color:#8EA1B4'>No news available "
+                            "for this sector from Yahoo Finance.</div>",
                             unsafe_allow_html=True
                         )
 
@@ -6323,7 +6361,7 @@ border-radius:8px;font-size:11px;color:#8B949E">
             "border:1px solid #21262D;border-radius:8px;font-size:11px;color:#8EA1B4'>"
             "<strong style='color:#C8A951'>Note:</strong> "
             "Top 5 stocks sourced from a curated Nifty 500 list, ranked by market cap. "
-            "News fetched from Google News RSS — content is from third-party sources. "
+            "News fetched from Yahoo Finance — content is from third-party sources. "
             "Updates follow the auto-refresh interval set in the sidebar. "
             "Not investment advice.</div>",
             unsafe_allow_html=True
@@ -6343,10 +6381,12 @@ border-radius:8px;font-size:11px;color:#8B949E">
         _attr_df_pdf  = attr_df  if 'attr_df'  in locals() else pd.DataFrame()
         _sect_df_pdf  = sector_df if 'sector_df' in locals() else None
         ## Pass benchmark price series to PDF for KPI cards
+        ## Read from session_state — reliable across Streamlit reruns
+        ## (variables defined inside if submitted: block are lost on PDF button rerun)
         try:
-            if 'benchmark_series' in locals() and benchmark_series is not None and not benchmark_series.empty:
-                _bm_tmp = benchmark_series.dropna()
-                ## Ensure 1D Series (not DataFrame)
+            _bm_raw = st.session_state.get("_pdf_benchmark_series", None)
+            if _bm_raw is not None and not _bm_raw.empty:
+                _bm_tmp = _bm_raw.dropna()
                 if isinstance(_bm_tmp, pd.DataFrame):
                     _bm_tmp = _bm_tmp.iloc[:, 0]
                 _bm_tmp = _bm_tmp.squeeze()
@@ -6355,6 +6395,8 @@ border-radius:8px;font-size:11px;color:#8B949E">
                 _bm_pdf = None
         except Exception:
             _bm_pdf = None
+        ## Read portfolio_beta from session_state
+        portfolio_beta = st.session_state.get("_pdf_portfolio_beta", np.nan)
         try:
             _quote_text, _quote_author = get_quote_of_day()
         except Exception:
