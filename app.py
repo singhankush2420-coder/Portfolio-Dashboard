@@ -1031,10 +1031,12 @@ def enrich_info(raw_ticker):
         "etf_info":     None,
         "sector":       _sector_yf,
     }
+import datetime as _dt_hdf
+_default_date = _dt_hdf.date.today() - _dt_hdf.timedelta(days=365)
 if "holdings_df" not in st.session_state:
     st.session_state["holdings_df"] = pd.DataFrame({
         "Ticker":    [""] * num_stocks,
-        "Buy Date":  [pd.Timestamp.today().date() - pd.Timedelta(days=365)] * num_stocks,
+        "Buy Date":  [_default_date] * num_stocks,
         "Buy Price": [0.0] * num_stocks,
         "Quantity":  [0] * num_stocks
     })
@@ -1046,7 +1048,7 @@ if _cur_len < num_stocks:
     ## Growing — add empty rows to reach num_stocks
     _extra = pd.DataFrame({
         "Ticker":    [""] * (num_stocks - _cur_len),
-        "Buy Date":  [pd.Timestamp.today().date() - pd.Timedelta(days=365)] * (num_stocks - _cur_len),
+        "Buy Date":  [_default_date] * (num_stocks - _cur_len),
         "Buy Price": [0.0] * (num_stocks - _cur_len),
         "Quantity":  [0] * (num_stocks - _cur_len)
     })
@@ -1226,6 +1228,7 @@ else:
 
 
     with st.form("holdings_form"):
+        import datetime as _dt_col
         holdings_df = st.data_editor(
             st.session_state["holdings_df"],
             num_rows="fixed",
@@ -1238,9 +1241,9 @@ else:
                 ),
                 "Buy Date": st.column_config.DateColumn(
                     "Buy Date",
-                    help="Date you purchased the stock",
-                    min_value=pd.Timestamp("1990-01-01").date(),
-                    max_value=pd.Timestamp.today().date(),
+                    help="Date you purchased the stock (from 1990 onwards)",
+                    min_value=_dt_col.date(1990, 1, 1),
+                    max_value=_dt_col.date.today(),
                     format="YYYY-MM-DD",
                     width="medium",
                 ),
