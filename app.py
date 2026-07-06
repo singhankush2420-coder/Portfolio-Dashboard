@@ -2264,27 +2264,48 @@ def fetch_top5_in_sector(sector_name, exchange="NSE", exclude_tickers=None):
     rows = []
     for ticker in adjusted[:8]:   ## check top 8, return best 5
         try:
-            info     = yf.Ticker(ticker).info
-            mkt_cap  = info.get("marketCap", 0) or 0
-            price    = info.get("currentPrice") or info.get("regularMarketPrice", 0)
-            prev     = info.get("previousClose", price) or price
+            ## Method 1: fast_info (lighter, more reliable than .info)
+            tk       = yf.Ticker(ticker)
+            fi       = tk.fast_info
+            price    = getattr(fi, 'last_price',    None) or getattr(fi, 'regular_market_price', None) or 0
+            prev     = getattr(fi, 'previous_close', price) or price
+            mkt_cap  = getattr(fi, 'market_cap',    None) or 0
             chg_1d   = ((price - prev) / prev * 100) if prev else 0
-            name     = info.get("shortName", ticker)
-            ## 52-week return
-            ret_52w  = info.get("52WeekChange", None)
-            if ret_52w is None:
-                ret_52w = 0.0
-            rows.append({
-                "Ticker":       ticker,
-                "Name":         name,
-                "Price":        price,
-                "1D Change %":  chg_1d,
-                "52W Return %": ret_52w * 100,
-                "Market Cap":   mkt_cap,
-                "In Portfolio": ticker in exclude or
-                                ticker.replace(suffix,"") + ".NS" in exclude or
-                                ticker.replace(suffix,"") + ".BO" in exclude,
-            })
+            ret_52w  = 0.0
+
+            ## Get name from .info only if fast_info gave us a valid price
+            name = ticker.replace(".NS","").replace(".BO","")
+            if price and price > 0:
+                try:
+                    name = tk.info.get("shortName", name) or name
+                except Exception:
+                    pass
+
+            ## Method 2: fallback to .info if fast_info gave nothing
+            if not price or price == 0:
+                try:
+                    info    = tk.info
+                    mkt_cap = info.get("marketCap", 0) or 0
+                    price   = info.get("currentPrice") or info.get("regularMarketPrice", 0) or 0
+                    prev    = info.get("previousClose", price) or price
+                    chg_1d  = ((price - prev) / prev * 100) if prev else 0
+                    name    = info.get("shortName", name) or name
+                    ret_52w = (info.get("52WeekChange") or 0.0) * 100
+                except Exception:
+                    pass
+
+            if price and price > 0:
+                rows.append({
+                    "Ticker":       ticker,
+                    "Name":         name,
+                    "Price":        price,
+                    "1D Change %":  chg_1d,
+                    "52W Return %": ret_52w,
+                    "Market Cap":   mkt_cap,
+                    "In Portfolio": ticker in exclude or
+                                    ticker.replace(suffix,"") + ".NS" in exclude or
+                                    ticker.replace(suffix,"") + ".BO" in exclude,
+                })
         except Exception:
             continue
 
@@ -4836,6 +4857,9 @@ try:
         "skewness":     skew(port_returns_bm),
         "kurtosis":     kurtosis(port_returns_bm, fisher=False),
     }
+    ## Store in session_state so PDF button can access on rerun
+    ## portfolio_stats defined inside try block — lost when PDF button reruns
+    st.session_state["_pdf_portfolio_stats"] = portfolio_stats
 
 
     ## ── Tab navigation ────────────────────────────────────────────────────────────
@@ -6630,9 +6654,10 @@ border-radius:8px;font-size:11px;color:#8B949E">
         _risk_df_pdf  = risk_df  if 'risk_df'  in locals() else pd.DataFrame()
         _attr_df_pdf  = attr_df  if 'attr_df'  in locals() else pd.DataFrame()
         _sect_df_pdf  = sector_df if 'sector_df' in locals() else None
-        ## Pass benchmark price series to PDF for KPI cards
         ## Read from session_state — reliable across Streamlit reruns
-        ## (variables defined inside if submitted: block are lost on PDF button rerun)
+        ## Variables defined inside try/submitted block are lost on PDF button rerun
+        portfolio_stats  = st.session_state.get("_pdf_portfolio_stats", portfolio_stats if 'portfolio_stats' in locals() else {})
+        portfolio_beta   = st.session_state.get("_pdf_portfolio_beta", np.nan)
         try:
             _bm_raw = st.session_state.get("_pdf_benchmark_series", None)
             if _bm_raw is not None and not _bm_raw.empty:
