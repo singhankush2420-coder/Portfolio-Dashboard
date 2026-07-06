@@ -4611,6 +4611,11 @@ try:
         if holdings_df.empty:
             st.error("No valid tickers remaining. Please check your portfolio.")
             st.stop()
+        ## CRITICAL: re-align prices and returns to valid tickers only
+        ## Otherwise np.dot(returns, weights) shape mismatch crashes
+        valid_cols = [t for t in tickers if t in prices.columns]
+        prices     = prices[valid_cols]
+        returns    = compute_returns(prices)
 
     holdings_df["Invested Value"] = holdings_df["Buy Price"] * holdings_df["Quantity"]
     holdings_df["Current Value"]  = holdings_df["Current Price"] * holdings_df["Quantity"]
@@ -4626,6 +4631,11 @@ try:
     total_pnl                     = holdings_df["P&L"].sum()
     portfolio_value               = total_current
     weights                       = (holdings_df["Current Value"] / total_current).values
+
+    ## Ensure returns columns are in same order as holdings_df tickers
+    ## to guarantee np.dot(returns, weights) alignment
+    _aligned_tickers = [t for t in holdings_df["Ticker"].tolist() if t in returns.columns]
+    returns          = returns[_aligned_tickers]
 
     weight_map   = dict(zip(holdings_df["Ticker"], weights))
     value_map    = dict(zip(holdings_df["Ticker"], holdings_df["Current Value"]))
