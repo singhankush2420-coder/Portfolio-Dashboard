@@ -59,13 +59,13 @@ if not st.session_state["welcome_shown"]:
 .piq-tp{padding:32px 36px 24px;}
 .piq-br{display:flex;align-items:center;gap:8px;margin-bottom:24px;}
 .piq-dot{width:8px;height:8px;border-radius:50%;background:#C8A951;display:inline-block;}
-.piq-bn{font-size:12px;font-weight:500;color:#8B949E;letter-spacing:0.5px;}
+.piq-bn{font-size:12px;font-weight:600;color:#8B949E;letter-spacing:0.5px;}
 .piq-qm{font-size:52px;color:#C8A951;line-height:0.5;display:block;margin-bottom:10px;font-family:Georgia,serif;}
 .piq-qt{font-family:Georgia,serif;font-size:15px;color:#E6EDF3;line-height:1.75;font-style:italic;}
 .piq-sc{font-size:11px;color:#8B949E;margin-top:10px;}
 .piq-dv{width:32px;height:1px;background:#30363D;margin:20px 0;}
 .piq-bd{font-size:13px;color:#8B949E;line-height:1.75;}
-.piq-bd b{color:#E6EDF3;font-weight:500;}
+.piq-bd b{color:#E6EDF3;font-weight:600;}
 .piq-bt{padding:16px 36px 28px;}
 .piq-ds{padding:12px 14px;background:#161B22;border-radius:8px;margin-bottom:20px;border:0.5px solid #30363D;}
 .piq-ds p{font-size:10.5px;color:#6E7681;line-height:1.6;text-transform:uppercase;letter-spacing:0.3px;}
@@ -108,7 +108,7 @@ button[kind="secondary"] {
     border-radius: 8px !important;
     background: transparent !important;
     color: #C8A951 !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     position: relative;
     top: -68px;
 }
@@ -123,7 +123,7 @@ button[kind="secondary"] p { color: #C8A951 !important; }
 
     _bc = st.columns([1, 1.4, 1])
     with _bc[1]:
-        if st.button("Begin Analysis", key="welcome_ok", use_container_width=True):
+        if st.button("Begin Analysis", key="welcome_ok", width='stretch'):
             st.session_state["welcome_shown"] = True
             st.rerun()
     st.stop()
@@ -508,7 +508,7 @@ BENCHMARK_OPTIONS = {
     "Nifty 50 (NSE Top 50)":          ("^NSEI",             "Nifty 50"),
     "Nifty Midcap 150 (NSE Mid)":     ("NIFTYMIDCAP150.NS", "Nifty Midcap 150"),
     "Nifty Smallcap 250 (NSE Small)": ("NIFTYSMLCAP250.NS", "Nifty Smallcap 250"),
-    "Nifty 500 (NSE Broad)":          ("NIFTY_500.NS",      "Nifty 500"),
+    "Nifty 500 (NSE Broad)":          ("^CRSLDX",          "Nifty 500"),
     "Sensex (BSE Large Cap)":         ("^BSESN",            "Sensex"),
     "BSE Midcap":                     ("BSE-MIDCAP.BO",  "BSE Midcap"),
     "BSE Smallcap":                   ("BSE-SMLCAP.BO",  "BSE Smallcap"),
@@ -629,30 +629,30 @@ ETF_BROAD_MARKET_KEYWORDS = [
 ## Proxy = Nifty 500 (broadest available on Yahoo Finance)
 ## Label shown to user: "Nifty 500 (Proxy)" — transparent about limitation
 ETF_THEMATIC_MAP = {
-    "defence":     ("Defence & Aerospace",   "NIFTY_500.NS"),
-    "defense":     ("Defence & Aerospace",   "NIFTY_500.NS"),
+    "defence":     ("Defence & Aerospace",   "^CRSLDX"),
+    "defense":     ("Defence & Aerospace",   "^CRSLDX"),
     "psu":         ("PSU Theme",             "^CNXPSE"),
     "public sector":("PSU Theme",            "^CNXPSE"),
-    "manufactur":  ("Manufacturing",         "NIFTY_500.NS"),
+    "manufactur":  ("Manufacturing",         "^CRSLDX"),
     "mobility":    ("Mobility / EV",         "NIFTYMIDCAP150.NS"),
     "ev ":         ("EV / Clean Energy",     "NIFTYMIDCAP150.NS"),
     "electric":    ("EV / Clean Energy",     "NIFTYMIDCAP150.NS"),
     "midcap":      ("Mid Cap",               "NIFTYMIDCAP150.NS"),
     "mid cap":     ("Mid Cap",               "NIFTYMIDCAP150.NS"),
-    "smallcap":    ("Small Cap",             "NIFTY_500.NS"),
-    "small cap":   ("Small Cap",             "NIFTY_500.NS"),
+    "smallcap":    ("Small Cap",             "^CRSLDX"),
+    "small cap":   ("Small Cap",             "^CRSLDX"),
     ## PSU / CPSE
     "cpse":        ("PSU Theme",             "^CNXPSE"),
     "bharat 22":   ("PSU Theme",             "^CNXPSE"),
     ## Infra
     "infrabees":   ("Industrials",           "^CNXINFRA"),
     ## Factor / Smart Beta ETFs
-    "low vol":     ("Factor ETF",            "NIFTY_500.NS"),
-    "low volat":   ("Factor ETF",            "NIFTY_500.NS"),
-    "momentum":    ("Factor ETF",            "NIFTY_500.NS"),
-    "quality":     ("Factor ETF",            "NIFTY_500.NS"),
+    "low vol":     ("Factor ETF",            "^CRSLDX"),
+    "low volat":   ("Factor ETF",            "^CRSLDX"),
+    "momentum":    ("Factor ETF",            "^CRSLDX"),
+    "quality":     ("Factor ETF",            "^CRSLDX"),
     ## Consumption / India themes
-    "consumption": ("Consumption Theme",     "NIFTY_500.NS"),
+    "consumption": ("Consumption Theme",     "^CRSLDX"),
     ## REIT / InvIT
     "reit":        ("Real Estate",           "^CNXREALTY"),
     "invit":       ("Real Estate",           "^CNXREALTY"),
@@ -675,13 +675,13 @@ ETF_DEFINITIONS = {
     "GROWWDEFNC.NS": {
         "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
         "is_etf": True, "tracks": "Nifty India Defence Index",
-        "etf_tier": 3, "attribution_bm": "NIFTY_500.NS",
+        "etf_tier": 3, "attribution_bm": "^CRSLDX",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     "MODEFENCE.NS": {
         "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
         "is_etf": True, "tracks": "Nifty India Defence Index",
-        "etf_tier": 3, "attribution_bm": "NIFTY_500.NS",
+        "etf_tier": 3, "attribution_bm": "^CRSLDX",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     ## ── Nifty 50 ETFs (Tier 2 Broad Market) ─────────────────────────────────
@@ -844,9 +844,37 @@ def classify_etf(ticker, info_data):
 
 ## Manual sector overrides for stocks Yahoo Finance cannot classify correctly
 ## e.g. newly listed stocks, demerged entities, small caps
-MANUAL_SECTOR_MAP = {
-    "TMCV.NS": "Consumer Cyclical",
-    "TMPV.NS": "Consumer Cyclical",
+MANUAL_SECTOR_MAP = {  ## Priority 3 fallback when Yahoo returns Unknown
+    "TMCV.NS":"Consumer Cyclical","TMPV.NS":"Consumer Cyclical",
+    "TITAN.NS":"Consumer Durables","CRISIL.NS":"Financial Services",
+    "DABUR.NS":"Consumer Defensive","ASIANPAINT.NS":"Basic Materials",
+    "TECHM.NS":"Technology","WIPRO.NS":"Technology","INFY.NS":"Technology",
+    "TCS.NS":"Technology","HCLTECH.NS":"Technology","LTIM.NS":"Technology",
+    "PERSISTENT.NS":"Technology","COFORGE.NS":"Technology","MPHASIS.NS":"Technology",
+    "BAJFINANCE.NS":"Financial Services","BAJAJFINSV.NS":"Financial Services",
+    "HDFCBANK.NS":"Financial Services","ICICIBANK.NS":"Financial Services",
+    "KOTAKBANK.NS":"Financial Services","AXISBANK.NS":"Financial Services",
+    "SBIN.NS":"Financial Services","SBILIFE.NS":"Financial Services",
+    "HDFCLIFE.NS":"Financial Services","SHRIRAMFIN.NS":"Financial Services",
+    "RELIANCE.NS":"Energy","ONGC.NS":"Energy","BPCL.NS":"Energy",
+    "IOC.NS":"Energy","GAIL.NS":"Energy","NTPC.NS":"Utilities",
+    "POWERGRID.NS":"Utilities","NHPC.NS":"Utilities","TATAPOWER.NS":"Utilities",
+    "SUNPHARMA.NS":"Healthcare","DRREDDY.NS":"Healthcare","CIPLA.NS":"Healthcare",
+    "DIVISLAB.NS":"Healthcare","APOLLOHOSP.NS":"Healthcare",
+    "MARUTI.NS":"Consumer Cyclical","TATAMOTORS.NS":"Consumer Cyclical",
+    "MM.NS":"Consumer Cyclical","BAJAJ-AUTO.NS":"Consumer Cyclical",
+    "HEROMOTOCO.NS":"Consumer Cyclical","EICHERMOT.NS":"Consumer Cyclical",
+    "ITC.NS":"Consumer Defensive","HINDUNILVR.NS":"Consumer Defensive",
+    "NESTLEIND.NS":"Consumer Defensive","BRITANNIA.NS":"Consumer Defensive",
+    "MARICO.NS":"Consumer Defensive","TATACONSUM.NS":"Consumer Defensive",
+    "LT.NS":"Industrials","BEL.NS":"Industrials","SIEMENS.NS":"Industrials",
+    "ABB.NS":"Industrials","HAVELLS.NS":"Industrials",
+    "BHARTIARTL.NS":"Communication Services",
+    "TATASTEEL.NS":"Basic Materials","JSWSTEEL.NS":"Basic Materials",
+    "HINDALCO.NS":"Basic Materials","ULTRACEMCO.NS":"Basic Materials",
+    "SAIL.NS":"Basic Materials","NMDC.NS":"Basic Materials",
+    "GODREJPROP.NS":"Real Estate","DLF.NS":"Real Estate",
+    "VOLTAS.NS":"Consumer Durables",
 }
 
 ## ─────────────────────────────────────────────────────────────────────────────
@@ -1157,10 +1185,16 @@ else:
                                       value=1, step=1, key="qa_qty")
         with _c3:
             import datetime as _dt
-            _qdate  = st.date_input("Buy Date", value=_dt.date.today(), key="qa_date")
+            _qdate  = st.date_input(
+                "Buy Date",
+                value=_dt.date.today(),
+                min_value=_dt.date(1990, 1, 1),
+                max_value=_dt.date.today(),
+                key="qa_date"
+            )
         with _c4:
             st.markdown("<div style='margin-top:22px'></div>", unsafe_allow_html=True)
-            _qadd   = st.button("Add", key="qa_add_btn", use_container_width=True)
+            _qadd   = st.button("Add", key="qa_add_btn", width='stretch')
         if _qadd:
             if _qprice <= 0:
                 st.error("Enter a valid buy price.")
@@ -1195,7 +1229,37 @@ else:
         holdings_df = st.data_editor(
             st.session_state["holdings_df"],
             num_rows="fixed",
-            hide_index=True 
+            hide_index=True,
+            column_config={
+                "Ticker": st.column_config.TextColumn(
+                    "Ticker",
+                    help="NSE ticker e.g. RELIANCE.NS or BSE ticker e.g. RELIANCE.BO",
+                    width="medium",
+                ),
+                "Buy Date": st.column_config.DateColumn(
+                    "Buy Date",
+                    help="Date you purchased the stock",
+                    min_value=pd.Timestamp("1990-01-01").date(),
+                    max_value=pd.Timestamp.today().date(),
+                    format="YYYY-MM-DD",
+                    width="medium",
+                ),
+                "Buy Price": st.column_config.NumberColumn(
+                    "Buy Price (₹)",
+                    help="Price per share at time of purchase",
+                    min_value=0.01,
+                    format="%.2f",
+                    width="medium",
+                ),
+                "Quantity": st.column_config.NumberColumn(
+                    "Quantity",
+                    help="Number of shares purchased",
+                    min_value=1,
+                    step=1,
+                    format="%d",
+                    width="small",
+                ),
+            }
         )
         submitted = st.form_submit_button("✅ Start Porfolio Analysis")
 
@@ -1422,7 +1486,7 @@ _BSE_SMALLCAP_WEIGHTS = {
 BENCHMARK_SECTOR_WEIGHTS = {
     "^CNX100":     {"name": "Nifty 100",       "updated": "Jun 2026", "weights": _NIFTY100_WEIGHTS},
     "^NSEI":       {"name": "Nifty 50",        "updated": "May 2026", "weights": _NIFTY50_WEIGHTS},
-    "NIFTY_500.NS": {"name": "Nifty 500","updated": "May 2026", "weights": _NIFTY500_WEIGHTS},
+    "^CRSLDX":      {"name": "Nifty 500",  "updated": "Jun 2026", "weights": _NIFTY500_WEIGHTS},
     "NIFTYSMLCAP250.NS": {"name": "Nifty Smallcap 250","updated": "Jun 2026", "weights": _NIFTY_SMALLCAP250_WEIGHTS},
     "NIFTYMIDCAP150.NS":     {"name": "Nifty Midcap 150",       "updated": "May 2026", "weights": _NIFTY_MIDCAP150_WEIGHTS},
     "^BSESN":      {"name": "Sensex",          "updated": "Jun 2026", "weights": _SENSEX_WEIGHTS},
@@ -1557,30 +1621,30 @@ ETF_BROAD_MARKET_KEYWORDS = [
 ## Proxy = Nifty 500 (broadest available on Yahoo Finance)
 ## Label shown to user: "Nifty 500 (Proxy)" — transparent about limitation
 ETF_THEMATIC_MAP = {
-    "defence":     ("Defence & Aerospace",   "NIFTY_500.NS"),
-    "defense":     ("Defence & Aerospace",   "NIFTY_500.NS"),
+    "defence":     ("Defence & Aerospace",   "^CRSLDX"),
+    "defense":     ("Defence & Aerospace",   "^CRSLDX"),
     "psu":         ("PSU Theme",             "^CNXPSE"),
     "public sector":("PSU Theme",            "^CNXPSE"),
-    "manufactur":  ("Manufacturing",         "NIFTY_500.NS"),
+    "manufactur":  ("Manufacturing",         "^CRSLDX"),
     "mobility":    ("Mobility / EV",         "NIFTYMIDCAP150.NS"),
     "ev ":         ("EV / Clean Energy",     "NIFTYMIDCAP150.NS"),
     "electric":    ("EV / Clean Energy",     "NIFTYMIDCAP150.NS"),
     "midcap":      ("Mid Cap",               "NIFTYMIDCAP150.NS"),
     "mid cap":     ("Mid Cap",               "NIFTYMIDCAP150.NS"),
-    "smallcap":    ("Small Cap",             "NIFTY_500.NS"),
-    "small cap":   ("Small Cap",             "NIFTY_500.NS"),
+    "smallcap":    ("Small Cap",             "^CRSLDX"),
+    "small cap":   ("Small Cap",             "^CRSLDX"),
     ## PSU / CPSE
     "cpse":        ("PSU Theme",             "^CNXPSE"),
     "bharat 22":   ("PSU Theme",             "^CNXPSE"),
     ## Infra
     "infrabees":   ("Industrials",           "^CNXINFRA"),
     ## Factor / Smart Beta ETFs
-    "low vol":     ("Factor ETF",            "NIFTY_500.NS"),
-    "low volat":   ("Factor ETF",            "NIFTY_500.NS"),
-    "momentum":    ("Factor ETF",            "NIFTY_500.NS"),
-    "quality":     ("Factor ETF",            "NIFTY_500.NS"),
+    "low vol":     ("Factor ETF",            "^CRSLDX"),
+    "low volat":   ("Factor ETF",            "^CRSLDX"),
+    "momentum":    ("Factor ETF",            "^CRSLDX"),
+    "quality":     ("Factor ETF",            "^CRSLDX"),
     ## Consumption / India themes
-    "consumption": ("Consumption Theme",     "NIFTY_500.NS"),
+    "consumption": ("Consumption Theme",     "^CRSLDX"),
     ## REIT / InvIT
     "reit":        ("Real Estate",           "^CNXREALTY"),
     "invit":       ("Real Estate",           "^CNXREALTY"),
@@ -1603,13 +1667,13 @@ ETF_DEFINITIONS = {
     "GROWWDEFNC.NS": {
         "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
         "is_etf": True, "tracks": "Nifty India Defence Index",
-        "etf_tier": 3, "attribution_bm": "NIFTY_500.NS",
+        "etf_tier": 3, "attribution_bm": "^CRSLDX",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     "MODEFENCE.NS": {
         "sector": "Defence & Aerospace", "industry": "ETF — Nifty India Defence Index",
         "is_etf": True, "tracks": "Nifty India Defence Index",
-        "etf_tier": 3, "attribution_bm": "NIFTY_500.NS",
+        "etf_tier": 3, "attribution_bm": "^CRSLDX",
         "attribution_bm_label": "Nifty 500 (Proxy)",
     },
     ## ── Nifty 50 ETFs (Tier 2 Broad Market) ─────────────────────────────────
@@ -1772,9 +1836,37 @@ def classify_etf(ticker, info_data):
 
 ## Manual sector overrides for stocks Yahoo Finance cannot classify correctly
 ## e.g. newly listed stocks, demerged entities, small caps
-MANUAL_SECTOR_MAP = {
-    "TMCV.NS": "Consumer Cyclical",
-    "TMPV.NS": "Consumer Cyclical",
+MANUAL_SECTOR_MAP = {  ## Priority 3 fallback when Yahoo returns Unknown
+    "TMCV.NS":"Consumer Cyclical","TMPV.NS":"Consumer Cyclical",
+    "TITAN.NS":"Consumer Durables","CRISIL.NS":"Financial Services",
+    "DABUR.NS":"Consumer Defensive","ASIANPAINT.NS":"Basic Materials",
+    "TECHM.NS":"Technology","WIPRO.NS":"Technology","INFY.NS":"Technology",
+    "TCS.NS":"Technology","HCLTECH.NS":"Technology","LTIM.NS":"Technology",
+    "PERSISTENT.NS":"Technology","COFORGE.NS":"Technology","MPHASIS.NS":"Technology",
+    "BAJFINANCE.NS":"Financial Services","BAJAJFINSV.NS":"Financial Services",
+    "HDFCBANK.NS":"Financial Services","ICICIBANK.NS":"Financial Services",
+    "KOTAKBANK.NS":"Financial Services","AXISBANK.NS":"Financial Services",
+    "SBIN.NS":"Financial Services","SBILIFE.NS":"Financial Services",
+    "HDFCLIFE.NS":"Financial Services","SHRIRAMFIN.NS":"Financial Services",
+    "RELIANCE.NS":"Energy","ONGC.NS":"Energy","BPCL.NS":"Energy",
+    "IOC.NS":"Energy","GAIL.NS":"Energy","NTPC.NS":"Utilities",
+    "POWERGRID.NS":"Utilities","NHPC.NS":"Utilities","TATAPOWER.NS":"Utilities",
+    "SUNPHARMA.NS":"Healthcare","DRREDDY.NS":"Healthcare","CIPLA.NS":"Healthcare",
+    "DIVISLAB.NS":"Healthcare","APOLLOHOSP.NS":"Healthcare",
+    "MARUTI.NS":"Consumer Cyclical","TATAMOTORS.NS":"Consumer Cyclical",
+    "MM.NS":"Consumer Cyclical","BAJAJ-AUTO.NS":"Consumer Cyclical",
+    "HEROMOTOCO.NS":"Consumer Cyclical","EICHERMOT.NS":"Consumer Cyclical",
+    "ITC.NS":"Consumer Defensive","HINDUNILVR.NS":"Consumer Defensive",
+    "NESTLEIND.NS":"Consumer Defensive","BRITANNIA.NS":"Consumer Defensive",
+    "MARICO.NS":"Consumer Defensive","TATACONSUM.NS":"Consumer Defensive",
+    "LT.NS":"Industrials","BEL.NS":"Industrials","SIEMENS.NS":"Industrials",
+    "ABB.NS":"Industrials","HAVELLS.NS":"Industrials",
+    "BHARTIARTL.NS":"Communication Services",
+    "TATASTEEL.NS":"Basic Materials","JSWSTEEL.NS":"Basic Materials",
+    "HINDALCO.NS":"Basic Materials","ULTRACEMCO.NS":"Basic Materials",
+    "SAIL.NS":"Basic Materials","NMDC.NS":"Basic Materials",
+    "GODREJPROP.NS":"Real Estate","DLF.NS":"Real Estate",
+    "VOLTAS.NS":"Consumer Durables",
 }
 
 ## ─────────────────────────────────────────────────────────────────────────────
@@ -1983,9 +2075,9 @@ def detect_portfolio_benchmark(enriched_rows):
         elif dominant_cap == "Small Cap":
             return "NIFTYSMLCAP250.NS", "Nifty Smallcap 250",  "NSE"
         elif dominant_cap == "Large Mid Mixed":
-            return "NIFTY_500.NS",      "Nifty 500",           "NSE"
+            return "^CRSLDX",           "Nifty 500",           "NSE"
         else:
-            return "NIFTY_500.NS",      "Nifty 500",           "NSE"
+            return "^CRSLDX",           "Nifty 500",           "NSE"
 
 
 @st.cache_data(ttl=ttl_seconds)
@@ -4650,7 +4742,7 @@ try:
     border-radius: 6px 6px 0 0;
     color: #8B949E;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     padding: 8px 16px;
     border: none;
 }
@@ -4737,13 +4829,13 @@ try:
                 "Current Value":  "₹{:.2f}",
                 "P&L":            "₹{:.2f}",
                 "Return %":       "{:.2f}%"
-            }).map(lambda v: "color:#C8A951;font-weight:500"
+            }).map(lambda v: "color:#C8A951;font-weight:600"
                    if v in ("Large Cap","Mid Cap","Small Cap") else
                    ("color:#58A6FF" if v == "NSE" else
                     ("color:#3FB950" if v == "BSE" else "")),
                    subset=[c for c in ["Exchange","Cap"]
                            if c in holdings_df.columns]),
-            use_container_width=True
+            width='stretch'
         )
         st.markdown("<hr style='border:none;border-top:1px solid #21262D;margin:24px 0'>", unsafe_allow_html=True)
 
@@ -4847,7 +4939,7 @@ try:
             textinfo = "text",
         ))
         fig_tm.update_layout(height=500, margin=dict(t=30, l=10, r=10, b=10))
-        st.plotly_chart(fig_tm, use_container_width=True)
+        st.plotly_chart(fig_tm, width='stretch')
 
         has_notes = any(v is not None for v in ticker_data_notes.values())
         if has_notes:
@@ -5034,7 +5126,7 @@ try:
                 period_df.style
                 .format("{:+.2f}%")
                 .background_gradient(subset=["Excess (%)"], cmap="RdYlGn", vmin=-10, vmax=10),
-                use_container_width=True
+                width='stretch'
             )
 
             st.markdown("<p style='font-size:13px;font-weight:600;color:#C8A951;margin:16px 0 8px 0;border-bottom:1px solid #21262D;padding-bottom:6px'>Cumulative Performance — Base 100 (TWR)</p>", unsafe_allow_html=True)
@@ -5204,7 +5296,7 @@ try:
             })
             .background_gradient(subset=["Return Contrib."], cmap="RdYlGn", vmin=-0.05, vmax=0.05)
             .background_gradient(subset=["P&L Contrib. %"],  cmap="RdYlGn", vmin=-100,  vmax=100),
-            use_container_width=True
+            width='stretch'
         )
 
         ## Waterfall
@@ -5559,7 +5651,7 @@ try:
                 })
                 .map(color_diff, subset=["Difference"])
                 .background_gradient(subset=["Stock Return"], cmap="RdYlGn", vmin=-0.3, vmax=0.3),
-                use_container_width=True
+                width='stretch'
             )
 
             ## BHB table
@@ -5587,7 +5679,7 @@ try:
                 })
                 .background_gradient(subset=["Total Active Return"], cmap="RdYlGn", vmin=-0.05, vmax=0.05)
                 .background_gradient(subset=["Active Weight"],       cmap="RdYlGn", vmin=-0.3,  vmax=0.3),
-                use_container_width=True
+                width='stretch'
             )
 
             ## BHB summary metrics
@@ -5820,7 +5912,7 @@ border-left:4px solid #C8A951;border-radius:0 8px 8px 0;font-size:13px;color:#C9
                 "VaR Amount (Rs.)": "₹{:,.2f}",
                 "ES Amount (Rs.)":  "₹{:,.2f}",
             }),
-            use_container_width=True
+            width='stretch'
         )
 
         if len(risk_df) > 0:
@@ -5888,16 +5980,16 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
             try:
                 v = float(val.replace('%','').replace('₹','').replace(',',''))
                 if '₹' in val and v < 0:
-                    return 'color: #F85149; font-weight: 500'
+                    return 'color: #F85149; font-weight: 600'
                 if '%' in val and v < 0:
-                    return 'color: #F85149; font-weight: 500'
+                    return 'color: #F85149; font-weight: 600'
             except:
                 pass
             return ''
 
         st.dataframe(
             mkt_df.style.map(color_impact, subset=["Portfolio Impact (%)", "Loss (₹)"]),
-            use_container_width=True, hide_index=True
+            width='stretch', hide_index=True
         )
 
         ## Visual bar chart of market shocks
@@ -5958,10 +6050,10 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
 
                 df_s = pd.DataFrame(rows)
                 st.dataframe(df_s.style.map(
-                    lambda v: 'color:#F85149;font-weight:500' if (
+                    lambda v: 'color:#F85149;font-weight:600' if (
                         isinstance(v, str) and v.startswith('-')) else '',
                     subset=["Portfolio Impact", "Loss (₹)"]
-                ), use_container_width=True, hide_index=True)
+                ), width='stretch', hide_index=True)
 
         ## ══════════════════════════════════════════════════════════════════════
         ## TYPE 3 — HISTORICAL SCENARIOS
@@ -5996,11 +6088,11 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
         hist_df = pd.DataFrame(hist_rows)
         st.dataframe(
             hist_df.style.map(
-                lambda v: 'color:#F85149;font-weight:500' if (
+                lambda v: 'color:#F85149;font-weight:600' if (
                     isinstance(v, str) and v.startswith('-')) else '',
                 subset=["Est. Portfolio Drop", "Est. Loss (₹)"]
             ),
-            use_container_width=True, hide_index=True
+            width='stretch', hide_index=True
         )
 
         ## Visual comparison chart
@@ -6074,11 +6166,11 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:12px">
         conc_df = pd.DataFrame(conc_rows)
         st.dataframe(
             conc_df.style.map(
-                lambda v: 'color:#F85149;font-weight:500' if (
+                lambda v: 'color:#F85149;font-weight:600' if (
                     isinstance(v, str) and v.startswith('-')) else '',
                 subset=["Direct Portfolio Impact", "Loss (₹)"]
             ),
-            use_container_width=True, hide_index=True
+            width='stretch', hide_index=True
         )
 
         ## Disclaimer
@@ -6113,7 +6205,7 @@ border-radius:8px;font-size:11px;color:#8B949E">
             corr_matrix.style
             .background_gradient(cmap=custom_cmap, vmin=-1, vmax=1)
             .format("{:.2f}"),
-            use_container_width=True
+            width='stretch'
         )
         st.markdown("<hr style='border:none;border-top:1px solid #21262D;margin:24px 0'>", unsafe_allow_html=True)
 
@@ -6477,7 +6569,7 @@ border-radius:8px;font-size:11px;color:#8B949E">
                 data=_pdf_buf,
                 file_name=f"portfolio_risk_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
-                use_container_width=True,
+                width='stretch',
             )
     except Exception as _pdf_err:
         with _pdf_placeholder:
