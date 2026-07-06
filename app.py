@@ -875,6 +875,38 @@ MANUAL_SECTOR_MAP = {  ## Priority 3 fallback when Yahoo returns Unknown
     "SAIL.NS":"Basic Materials","NMDC.NS":"Basic Materials",
     "GODREJPROP.NS":"Real Estate","DLF.NS":"Real Estate",
     "VOLTAS.NS":"Consumer Durables",
+    ## Stocks confirmed returning N/A on Streamlit Cloud
+    "BHARATFORG.NS":"Industrials",
+    "OFSS.NS":"Technology",
+    "AMBUJACEM.NS":"Basic Materials",
+    "PFIZER.NS":"Healthcare",
+    ## Additional common NSE stocks
+    "ADANIENT.NS":"Industrials","ADANIPORTS.NS":"Industrials",
+    "ADANIGREEN.NS":"Utilities","ADANIPOWER.NS":"Utilities",
+    "PIIND.NS":"Basic Materials","DEEPAKNTR.NS":"Basic Materials",
+    "ASTRAL.NS":"Industrials","POLYCAB.NS":"Industrials",
+    "DMART.NS":"Consumer Defensive","TRENT.NS":"Consumer Cyclical",
+    "NYKAA.NS":"Consumer Cyclical","ZOMATO.NS":"Consumer Services",
+    "PAYTM.NS":"Financial Services","IRCTC.NS":"Industrials",
+    "IRFC.NS":"Financial Services","RVNL.NS":"Industrials",
+    "PFC.NS":"Financial Services","RECLTD.NS":"Financial Services",
+    "HUDCO.NS":"Financial Services","IREDA.NS":"Financial Services",
+    "CANBK.NS":"Financial Services","PNB.NS":"Financial Services",
+    "BANKBARODA.NS":"Financial Services","FEDERALBNK.NS":"Financial Services",
+    "IDFCFIRSTB.NS":"Financial Services","AUBANK.NS":"Financial Services",
+    "INDUSINDBK.NS":"Financial Services",
+    "TORNTPHARM.NS":"Healthcare","BIOCON.NS":"Healthcare",
+    "GLENMARK.NS":"Healthcare","ALKEM.NS":"Healthcare",
+    "JSWENERGY.NS":"Utilities","TORNTPOWER.NS":"Utilities",
+    "DALBHARAT.NS":"Basic Materials","SHREECEM.NS":"Basic Materials",
+    "RAMCOCEM.NS":"Basic Materials","JKCEMENT.NS":"Basic Materials",
+    "IGL.NS":"Energy","MGL.NS":"Energy","GUJGASLTD.NS":"Energy",
+    "VBL.NS":"Consumer Defensive","RADICO.NS":"Consumer Defensive",
+    "JUBLFOOD.NS":"Consumer Services","DEVYANI.NS":"Consumer Services",
+    "WESTLIFE.NS":"Consumer Services","SAPIENT.NS":"Technology",
+    "KPITTECH.NS":"Technology","TATAELXSI.NS":"Technology",
+    "KAYNES.NS":"Industrials","DIXON.NS":"Industrials",
+    "APLAPOLLO.NS":"Industrials","GRINDWELL.NS":"Industrials",
 }
 
 ## ─────────────────────────────────────────────────────────────────────────────
@@ -1020,6 +1052,23 @@ def enrich_info(raw_ticker):
 
     ## Get sector from Yahoo Finance info (already fetched above)
     _sector_yf = info_data.get("sector", None) or None
+
+    ## If sector is missing from .info, try quoteSummary API directly
+    ## This is more reliable for NSE stocks from cloud server IPs
+    if not _sector_yf or _sector_yf == "Unknown":
+        try:
+            import requests as _req2
+            _url2 = f"https://query2.finance.yahoo.com/v11/finance/quoteSummary/{resolved_ticker}"
+            _r2   = _req2.get(_url2, params={"modules":"assetProfile"},
+                              headers={"User-Agent":"Mozilla/5.0"}, timeout=5)
+            if _r2.status_code == 200:
+                _prof = _r2.json().get("quoteSummary",{}).get("result",[{}])
+                if _prof:
+                    _s = _prof[0].get("assetProfile",{}).get("sector","")
+                    if _s and _s != "Unknown":
+                        _sector_yf = _s
+        except Exception:
+            pass
 
     return {
         "ticker":       resolved_ticker,
@@ -1851,6 +1900,38 @@ MANUAL_SECTOR_MAP = {  ## Priority 3 fallback when Yahoo returns Unknown
     "SAIL.NS":"Basic Materials","NMDC.NS":"Basic Materials",
     "GODREJPROP.NS":"Real Estate","DLF.NS":"Real Estate",
     "VOLTAS.NS":"Consumer Durables",
+    ## Stocks confirmed returning N/A on Streamlit Cloud
+    "BHARATFORG.NS":"Industrials",
+    "OFSS.NS":"Technology",
+    "AMBUJACEM.NS":"Basic Materials",
+    "PFIZER.NS":"Healthcare",
+    ## Additional common NSE stocks
+    "ADANIENT.NS":"Industrials","ADANIPORTS.NS":"Industrials",
+    "ADANIGREEN.NS":"Utilities","ADANIPOWER.NS":"Utilities",
+    "PIIND.NS":"Basic Materials","DEEPAKNTR.NS":"Basic Materials",
+    "ASTRAL.NS":"Industrials","POLYCAB.NS":"Industrials",
+    "DMART.NS":"Consumer Defensive","TRENT.NS":"Consumer Cyclical",
+    "NYKAA.NS":"Consumer Cyclical","ZOMATO.NS":"Consumer Services",
+    "PAYTM.NS":"Financial Services","IRCTC.NS":"Industrials",
+    "IRFC.NS":"Financial Services","RVNL.NS":"Industrials",
+    "PFC.NS":"Financial Services","RECLTD.NS":"Financial Services",
+    "HUDCO.NS":"Financial Services","IREDA.NS":"Financial Services",
+    "CANBK.NS":"Financial Services","PNB.NS":"Financial Services",
+    "BANKBARODA.NS":"Financial Services","FEDERALBNK.NS":"Financial Services",
+    "IDFCFIRSTB.NS":"Financial Services","AUBANK.NS":"Financial Services",
+    "INDUSINDBK.NS":"Financial Services",
+    "TORNTPHARM.NS":"Healthcare","BIOCON.NS":"Healthcare",
+    "GLENMARK.NS":"Healthcare","ALKEM.NS":"Healthcare",
+    "JSWENERGY.NS":"Utilities","TORNTPOWER.NS":"Utilities",
+    "DALBHARAT.NS":"Basic Materials","SHREECEM.NS":"Basic Materials",
+    "RAMCOCEM.NS":"Basic Materials","JKCEMENT.NS":"Basic Materials",
+    "IGL.NS":"Energy","MGL.NS":"Energy","GUJGASLTD.NS":"Energy",
+    "VBL.NS":"Consumer Defensive","RADICO.NS":"Consumer Defensive",
+    "JUBLFOOD.NS":"Consumer Services","DEVYANI.NS":"Consumer Services",
+    "WESTLIFE.NS":"Consumer Services","SAPIENT.NS":"Technology",
+    "KPITTECH.NS":"Technology","TATAELXSI.NS":"Technology",
+    "KAYNES.NS":"Industrials","DIXON.NS":"Industrials",
+    "APLAPOLLO.NS":"Industrials","GRINDWELL.NS":"Industrials",
 }
 
 ## ─────────────────────────────────────────────────────────────────────────────
@@ -1991,14 +2072,53 @@ def fetch_benchmark(ticker, start, end):
 
 @st.cache_data(ttl=ttl_seconds)
 def fetch_sector_info(ticker):
+    """
+    Fetch sector and industry for a ticker.
+    Uses multiple methods since yf.Ticker().info returns incomplete
+    data for some NSE stocks from cloud server IPs.
+    """
+    ## Method 1: yf.Ticker().info (standard)
     try:
-        info = yf.Ticker(ticker).info
-        return {
-            "sector":   info.get("sector",   "Unknown"),
-            "industry": info.get("industry", "Unknown"),
-        }
+        info   = yf.Ticker(ticker).info
+        sector = info.get("sector",   "") or ""
+        indust = info.get("industry", "") or ""
+        if sector and sector != "Unknown":
+            return {"sector": sector, "industry": indust}
     except Exception:
-        return {"sector": "Unknown", "industry": "Unknown"}
+        pass
+
+    ## Method 2: yf.Ticker().fast_info then get_info (yfinance 1.5+)
+    try:
+        tk  = yf.Ticker(ticker)
+        if hasattr(tk, 'get_info'):
+            info2  = tk.get_info()
+            sector = info2.get("sector",   "") or ""
+            indust = info2.get("industry", "") or ""
+            if sector and sector != "Unknown":
+                return {"sector": sector, "industry": indust}
+    except Exception:
+        pass
+
+    ## Method 3: Direct Yahoo Finance quoteSummary API
+    ## More reliable than yf.Ticker().info for NSE stocks from cloud IPs
+    try:
+        import requests as _req
+        _url = f"https://query2.finance.yahoo.com/v11/finance/quoteSummary/{ticker}"
+        _params = {"modules": "assetProfile"}
+        _headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        _r = _req.get(_url, params=_params, headers=_headers, timeout=6)
+        if _r.status_code == 200:
+            _data   = _r.json()
+            _profile= _data.get("quoteSummary",{}).get("result",[{}])[0].get("assetProfile",{})
+            sector  = _profile.get("sector",   "") or ""
+            indust  = _profile.get("industry", "") or ""
+            if sector and sector != "Unknown":
+                return {"sector": sector, "industry": indust}
+    except Exception:
+        pass
+
+    ## All methods failed
+    return {"sector": "Unknown", "industry": "Unknown"}
 
 
 @st.cache_data(ttl=ttl_seconds)
