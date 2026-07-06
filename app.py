@@ -75,7 +75,7 @@ if not st.session_state["welcome_shown"]:
 <div class="piq-br"><span class="piq-dot"></span><span class="piq-bn">PORTFOLIOIQ — RISK, PERFORMANCE &amp; ATTRIBUTION</span></div>
 <span class="piq-qm">"</span>
 <p class="piq-qt">Under heaven all can see beauty as beauty only because there is ugliness. All can know good as good only because there is evil.</p>
-<p class="piq-sc">— Tao Te Ching, Chapter 2 &nbsp;·&nbsp; Laozi</p>
+<p class="piq-sc">— Tao Te Ching, Chapter 2 &nbsp;·&nbsp; Lao Tzu</p>
 <div class="piq-dv"></div>
 <p class="piq-bd">A <b>profit</b> means little without understanding the losses that were possible.<br>A <b>return</b> means little without understanding the risks that created it.<br><br>PortfolioIQ was built to uncover the story behind both.</p>
 </div>
@@ -1202,8 +1202,10 @@ else:
                 st.error("Enter a valid buy price.")
             else:
                 import pandas as pd
+                ## Store _qdate as datetime.date directly — NOT as string
+                ## String causes type mismatch crash in data_editor on rerun
                 _new_row = pd.DataFrame([{
-                    "Ticker": _qt, "Buy Date": str(_qdate),
+                    "Ticker": _qt, "Buy Date": _qdate,
                     "Buy Price": float(_qprice), "Quantity": int(_qqty)
                 }])
                 _df = st.session_state.get("holdings_df",
@@ -1212,7 +1214,7 @@ else:
                 if _empty.any():
                     _idx = _empty.idxmax()
                     _df.at[_idx,"Ticker"]    = _qt
-                    _df.at[_idx,"Buy Date"]  = str(_qdate)
+                    _df.at[_idx,"Buy Date"]  = _qdate
                     _df.at[_idx,"Buy Price"] = float(_qprice)
                     _df.at[_idx,"Quantity"]  = int(_qqty)
                     st.session_state["holdings_df"] = _df
@@ -1229,40 +1231,19 @@ else:
 
     with st.form("holdings_form"):
         import datetime as _dt_col
+        ## Ensure Buy Date column is always datetime.date — never string
+        ## Prevents _check_type_compatibilities crash after Add button rerun
+        _df_safe = st.session_state["holdings_df"].copy()
+        _df_safe["Buy Date"] = pd.to_datetime(
+            _df_safe["Buy Date"], errors="coerce"
+        ).dt.date.where(
+            pd.to_datetime(_df_safe["Buy Date"], errors="coerce").notna(),
+            other=_dt_col.date.today() - _dt_col.timedelta(days=365)
+        )
         holdings_df = st.data_editor(
-            st.session_state["holdings_df"],
+            _df_safe,
             num_rows="fixed",
             hide_index=True,
-            column_config={
-                "Ticker": st.column_config.TextColumn(
-                    "Ticker",
-                    help="NSE ticker e.g. RELIANCE.NS or BSE ticker e.g. RELIANCE.BO",
-                    width="medium",
-                ),
-                "Buy Date": st.column_config.DateColumn(
-                    "Buy Date",
-                    help="Date you purchased the stock (from 1990 onwards)",
-                    min_value=_dt_col.date(1990, 1, 1),
-                    max_value=_dt_col.date.today(),
-                    format="YYYY-MM-DD",
-                    width="medium",
-                ),
-                "Buy Price": st.column_config.NumberColumn(
-                    "Buy Price (₹)",
-                    help="Price per share at time of purchase",
-                    min_value=0.01,
-                    format="%.2f",
-                    width="medium",
-                ),
-                "Quantity": st.column_config.NumberColumn(
-                    "Quantity",
-                    help="Number of shares purchased",
-                    min_value=1,
-                    step=1,
-                    format="%d",
-                    width="small",
-                ),
-            }
         )
         submitted = st.form_submit_button("✅ Start Porfolio Analysis")
 
