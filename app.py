@@ -17,7 +17,11 @@ import warnings
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 from matplotlib.patches import Patch
-import plotly.graph_objects as go
+try:
+    import plotly.graph_objects as go
+    _HAS_PLOTLY = True
+except ImportError:
+    _HAS_PLOTLY = False
 from scipy.stats import skew, kurtosis, norm, gaussian_kde
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors as rl_colors
@@ -29,7 +33,13 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas as rl_canvas
-from streamlit_autorefresh import st_autorefresh
+try:
+    from streamlit_autorefresh import st_autorefresh
+    _HAS_AUTOREFRESH = True
+except ImportError:
+    _HAS_AUTOREFRESH = False
+    def st_autorefresh(*args, **kwargs):
+        pass  ## graceful no-op if package missing
 
 ## ── Suppress matplotlib tight_layout warnings globally ─────────────────────
 import warnings as _warnings
@@ -3780,7 +3790,9 @@ def create_institutional_pdf(
     _r3c2 = _card("WORST PERFORMER", _worst_stock, KPI_VAL_R)
     _r3c3 = _card("VaR (1-Day)",     _var_cover,   KPI_VAL_R)
     try:
-        _beta_raw = portfolio_stats.get('beta', None)
+        ## Use portfolio_beta parameter first (passed directly from session_state)
+        ## Fall back to portfolio_stats dict (also from session_state)
+        _beta_raw = portfolio_beta if (portfolio_beta is not None and portfolio_beta == portfolio_beta) else portfolio_stats.get('beta', None)
         _beta_val = float(_beta_raw) if _beta_raw is not None else float('nan')
         _beta_str = f"{_beta_val:.4f}" if _beta_val == _beta_val else "N/A"
     except Exception:
@@ -4857,9 +4869,25 @@ try:
         "skewness":     skew(port_returns_bm),
         "kurtosis":     kurtosis(port_returns_bm, fisher=False),
     }
-    ## Store in session_state so PDF button can access on rerun
-    ## portfolio_stats defined inside try block — lost when PDF button reruns
-    st.session_state["_pdf_portfolio_stats"] = portfolio_stats
+    ## ── Store ALL PDF variables in session_state ─────────────────────────────
+    ## Every variable below is defined inside this try block
+    ## When PDF button is clicked, Streamlit reruns — this block is skipped
+    ## session_state persists across reruns — only reliable way to pass these
+    st.session_state["_pdf_portfolio_stats"]   = portfolio_stats
+    st.session_state["_pdf_benchmark_series"]  = benchmark_series
+    st.session_state["_pdf_portfolio_beta"]    = portfolio_beta
+    st.session_state["_pdf_holdings_df"]       = holdings_df.copy()
+    st.session_state["_pdf_total_invested"]    = total_invested
+    st.session_state["_pdf_total_current"]     = total_current
+    st.session_state["_pdf_total_pnl"]         = total_pnl
+    st.session_state["_pdf_portfolio_xirr"]    = portfolio_xirr
+    st.session_state["_pdf_max_dd"]            = max_dd
+    st.session_state["_pdf_recovery_date"]     = recovery_date
+    st.session_state["_pdf_port_returns_bm"]   = port_returns_bm
+    st.session_state["_pdf_benchmark_name"]    = BENCHMARK_NAME
+    st.session_state["_pdf_benchmark_ticker"]  = BENCHMARK_TICKER
+    st.session_state["_pdf_is_bse"]            = _is_bse_benchmark
+    st.session_state["_pdf_display_name"]      = _display_name
 
 
     ## ── Tab navigation ────────────────────────────────────────────────────────────
@@ -5041,43 +5069,55 @@ try:
             lambda t: "⚠️ data note" if ticker_data_notes.get(t) is not None else ""
         )
 
-        fig_tm = go.Figure(go.Treemap(
-            labels     = treemap_df["Ticker"].tolist(),
-            parents    = [""] * len(treemap_df),
-            values     = treemap_df["Value"].tolist(),
-            marker     = dict(
-                colors = treemap_df["Category"].map({
-                    "Excellent (>40% p.a.)": "#00C853",
-                    "Good (20-40% p.a.)":    "#2979FF",
-                    "Moderate (0-20% p.a.)": "#FF9100",
-                    "Negative (<0% p.a.)":   "#FF1744"
-                }).tolist(),
-                line = dict(width=2, color="black")
-            ),
-            customdata = treemap_df[
-                ["Weight", "XIRR", "P&L", "Value", "HasWarning", "Invested"]
-            ].values,
-            texttemplate = (
-                "<b>%{label}</b><br>"
-                "%{customdata[0]:.1%} weight<br>"
-                "XIRR %{customdata[1]:.1%} p.a.<br>"
-                "%{customdata[4]}<br>"
-                "₹%{customdata[2]:,.0f} P&L<br>"
-                "₹%{customdata[3]:,.0f}"
-            ),
-            hovertemplate = (
-                "<b>%{label}</b><br>"
-                "Weight: %{customdata[0]:.2%}<br>"
-                "XIRR: %{customdata[1]:.2%} p.a.<br>"
-                "P&L: ₹%{customdata[2]:,.0f}<br>"
-                "Current: ₹%{customdata[3]:,.0f}<br>"
-                "Invested: ₹%{customdata[5]:,.0f}<br>"
-                "%{customdata[4]}<extra></extra>"
-            ),
-            textinfo = "text",
-        ))
-        fig_tm.update_layout(height=500, margin=dict(t=30, l=10, r=10, b=10))
-        st.plotly_chart(fig_tm, width='stretch')
+        if _HAS_PLOTLY:
+            fig_tm = go.Figure(go.Treemap(
+                labels     = treemap_df["Ticker"].tolist(),
+                parents    = [""] * len(treemap_df),
+                values     = treemap_df["Value"].tolist(),
+                marker     = dict(
+                    colors = treemap_df["Category"].map({
+                        "Excellent (>40% p.a.)": "#00C853",
+                        "Good (20-40% p.a.)":    "#2979FF",
+                        "Moderate (0-20% p.a.)": "#FF9100",
+                        "Negative (<0% p.a.)":   "#FF1744"
+                    }).tolist(),
+                    line = dict(width=2, color="black")
+                ),
+                customdata = treemap_df[
+                    ["Weight", "XIRR", "P&L", "Value", "HasWarning", "Invested"]
+                ].values,
+                texttemplate = (
+                    "<b>%{label}</b><br>"
+                    "%{customdata[0]:.1%} weight<br>"
+                    "XIRR %{customdata[1]:.1%} p.a.<br>"
+                    "%{customdata[4]}<br>"
+                    "₹%{customdata[2]:,.0f} P&L<br>"
+                    "₹%{customdata[3]:,.0f}"
+                ),
+                hovertemplate = (
+                    "<b>%{label}</b><br>"
+                    "Weight: %{customdata[0]:.2%}<br>"
+                    "XIRR: %{customdata[1]:.2%} p.a.<br>"
+                    "P&L: ₹%{customdata[2]:,.0f}<br>"
+                    "Current: ₹%{customdata[3]:,.0f}<br>"
+                    "Invested: ₹%{customdata[5]:,.0f}<br>"
+                    "%{customdata[4]}<extra></extra>"
+                ),
+                textinfo = "text",
+            ))
+            fig_tm.update_layout(height=500, margin=dict(t=30, l=10, r=10, b=10))
+            st.plotly_chart(fig_tm, width='stretch')
+        else:
+            ## Plotly not available — matplotlib bar chart fallback
+            _fig2, _ax2 = plt.subplots(figsize=(10, 4))
+            _ax2.barh(treemap_df["Ticker"], treemap_df["Weight"],
+                      color=["#00C853","#2979FF","#FF9100","#FF1744"] * len(treemap_df))
+            _ax2.set_xlabel("Portfolio Weight")
+            _ax2.set_title("Portfolio Composition by Weight")
+            apply_dark_theme(_ax2, _fig2)
+            plt.tight_layout()
+            st.pyplot(_fig2)
+            plt.close(_fig2)
 
         has_notes = any(v is not None for v in ticker_data_notes.values())
         if has_notes:
@@ -5397,6 +5437,8 @@ try:
             0.0
         )
         attr_df = attr_df.sort_values("Return Contribution", ascending=False).reset_index(drop=True)
+        ## Store for PDF — attr_df only exists when user visits Attribution tab
+        st.session_state["_pdf_attr_df"] = attr_df.copy()
 
         best_stock  = attr_df.iloc[0]
         worst_stock = attr_df.iloc[-1]
@@ -5707,6 +5749,8 @@ try:
                 sector_df["Selection Effect"].fillna(0) +
                 sector_df["Interaction Effect"].fillna(0)
             )
+            ## Store for PDF — sector_df only exists when user visits Attribution tab
+            st.session_state["_pdf_sector_df"] = sector_df.copy()
 
             ## Stock vs Sector table
             st.markdown("<p style='font-size:12px;font-weight:600;color:#C9D1D9;margin:12px 0 6px 0'>Stock vs Sector Comparison</p>", unsafe_allow_html=True)
@@ -6033,6 +6077,8 @@ try:
             results,
             columns=["Method", "VaR %", "VaR Amount (Rs.)", "ES %", "ES Amount (Rs.)"]
         )
+        ## Store for PDF — risk_df only exists when user visits Risk & VaR tab
+        st.session_state["_pdf_risk_df"] = risk_df.copy()
 
         if risk_df.empty:
             st.markdown("""
@@ -6651,54 +6697,71 @@ border-radius:8px;font-size:11px;color:#8B949E">
         ("Dot-Com Bust (Sensex)",    "Feb 2000-Sep 2001",  -0.560),
     ]
     try:
-        _risk_df_pdf  = risk_df  if 'risk_df'  in locals() else pd.DataFrame()
-        _attr_df_pdf  = attr_df  if 'attr_df'  in locals() else pd.DataFrame()
-        _sect_df_pdf  = sector_df if 'sector_df' in locals() else None
-        ## Read from session_state — reliable across Streamlit reruns
-        ## Variables defined inside try/submitted block are lost on PDF button rerun
-        portfolio_stats  = st.session_state.get("_pdf_portfolio_stats", portfolio_stats if 'portfolio_stats' in locals() else {})
-        portfolio_beta   = st.session_state.get("_pdf_portfolio_beta", np.nan)
+        ## ── Read ALL variables from session_state ────────────────────────────
+        ## Every variable needed by PDF is stored in session_state when computed
+        ## On PDF button rerun, the try/submitted block is skipped — session_state
+        ## is the ONLY reliable source for these values
+        _ss              = st.session_state
+        portfolio_stats  = _ss.get("_pdf_portfolio_stats",  {})
+        portfolio_beta   = _ss.get("_pdf_portfolio_beta",   np.nan)
+        _pdf_holdings    = _ss.get("_pdf_holdings_df",      holdings_df if 'holdings_df' in locals() else pd.DataFrame())
+        _pdf_ti          = _ss.get("_pdf_total_invested",   total_invested   if 'total_invested'   in locals() else 0)
+        _pdf_tc          = _ss.get("_pdf_total_current",    total_current    if 'total_current'    in locals() else 0)
+        _pdf_pnl         = _ss.get("_pdf_total_pnl",        total_pnl        if 'total_pnl'        in locals() else 0)
+        _pdf_xirr        = _ss.get("_pdf_portfolio_xirr",   portfolio_xirr   if 'portfolio_xirr'   in locals() else np.nan)
+        _pdf_maxdd       = _ss.get("_pdf_max_dd",            max_dd           if 'max_dd'           in locals() else np.nan)
+        _pdf_recov       = _ss.get("_pdf_recovery_date",    recovery_date    if 'recovery_date'    in locals() else None)
+        _pdf_ret         = _ss.get("_pdf_port_returns_bm",  port_returns_bm  if 'port_returns_bm'  in locals() else pd.Series(dtype=float))
+        _pdf_bm_name     = _ss.get("_pdf_benchmark_name",   BENCHMARK_NAME   if 'BENCHMARK_NAME'   in locals() else "Nifty 50")
+        _pdf_bm_ticker   = _ss.get("_pdf_benchmark_ticker", BENCHMARK_TICKER if 'BENCHMARK_TICKER' in locals() else "^NSEI")
+        _pdf_is_bse      = _ss.get("_pdf_is_bse",           _is_bse_benchmark if '_is_bse_benchmark' in locals() else False)
+        _pdf_dname       = _ss.get("_pdf_display_name",     _display_name    if '_display_name'    in locals() else "")
+
+        ## attr_df / risk_df / sector_df: stored in session_state if user visited Attribution tab
+        _attr_df_pdf  = _ss.get("_pdf_attr_df",   attr_df   if 'attr_df'   in locals() else pd.DataFrame())
+        _risk_df_pdf  = _ss.get("_pdf_risk_df",   risk_df   if 'risk_df'   in locals() else pd.DataFrame())
+        _sect_df_pdf  = _ss.get("_pdf_sector_df", sector_df if 'sector_df' in locals() else None)
+
+        ## Benchmark price series for BM Return KPI card
         try:
-            _bm_raw = st.session_state.get("_pdf_benchmark_series", None)
+            _bm_raw = _ss.get("_pdf_benchmark_series", None)
             if _bm_raw is not None and not _bm_raw.empty:
                 _bm_tmp = _bm_raw.dropna()
                 if isinstance(_bm_tmp, pd.DataFrame):
                     _bm_tmp = _bm_tmp.iloc[:, 0]
-                _bm_tmp = _bm_tmp.squeeze()
-                _bm_pdf = _bm_tmp if len(_bm_tmp) > 1 else None
+                _bm_pdf = _bm_tmp.squeeze() if len(_bm_tmp) > 1 else None
             else:
                 _bm_pdf = None
         except Exception:
             _bm_pdf = None
-        ## Read portfolio_beta from session_state
-        portfolio_beta = st.session_state.get("_pdf_portfolio_beta", np.nan)
+
         try:
             _quote_text, _quote_author = get_quote_of_day()
         except Exception:
             _quote_text, _quote_author = "", ""
 
         _pdf_buf = create_institutional_pdf(
-            holdings_df=holdings_df,
+            holdings_df=_pdf_holdings,
             risk_df=_risk_df_pdf,
             portfolio_stats=portfolio_stats,
             attr_df=_attr_df_pdf,
-            total_invested=total_invested,
-            total_current=total_current,
-            total_pnl=total_pnl,
-            portfolio_xirr=portfolio_xirr,
-            max_dd=max_dd,
-            recovery_date=recovery_date,
+            total_invested=_pdf_ti,
+            total_current=_pdf_tc,
+            total_pnl=_pdf_pnl,
+            portfolio_xirr=_pdf_xirr,
+            max_dd=_pdf_maxdd,
+            recovery_date=_pdf_recov,
             RISK_FREE_ANNUAL=RISK_FREE_ANNUAL,
-            port_returns=port_returns_bm,
+            port_returns=_pdf_ret,
             benchmark_data=_bm_pdf,
             sector_df=_sect_df_pdf,
             stress_scenarios=_stress_scenarios,
             portfolio_beta=portfolio_beta,
-            total_current_val=total_current,
-            benchmark_name=BENCHMARK_NAME,
-            benchmark_ticker=BENCHMARK_TICKER,
-            portfolio_exchange="BSE" if _is_bse_benchmark else "NSE",
-            client_name=_display_name,
+            total_current_val=_pdf_tc,
+            benchmark_name=_pdf_bm_name,
+            benchmark_ticker=_pdf_bm_ticker,
+            portfolio_exchange="BSE" if _pdf_is_bse else "NSE",
+            client_name=_pdf_dname,
             quote_text=_quote_text,
             quote_author=_quote_author,
         )
