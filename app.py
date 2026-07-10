@@ -6799,4 +6799,7 @@ display:flex;justify-content:space-between;align-items:center">
 
 except Exception as e:
     import traceback
-    st.error(f"Error: {e}")
+    st.error(f"**Dashboard Error:** {e}")
+    with st.expander("🔍 Full Error Details (share with developer)", expanded=False):
+        st.code(traceback.format_exc(), language="python")
+    st.info("Try refreshing the page. If the error persists, check that all ticker symbols are valid (e.g. RELIANCE.NS not RELIANCE).")
