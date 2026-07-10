@@ -1,10 +1,19 @@
-streamlit
-pandas
-numpy
-yfinance
-matplotlib
-plotly
-scipy
-reportlab
-streamlit-autorefresh
-requests
+# PortfolioIQ — Pinned stable versions for Streamlit Cloud
+# Tested working combination as of Jul 2026
+# numpy<2.0 avoids SIMD segfault on Streamlit Cloud's Docker container
+# pandas<3.0 avoids breaking API changes in pandas 3.x
+# scipy<1.15 stable with numpy 1.x
+# Python 3.12 compatible
+
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.13.1
+matplotlib==3.9.4
+streamlit==1.43.2
+yfinance==1.5.1
+plotly==5.24.1
+reportlab==4.2.5
+openpyxl==3.1.5
+pyxirr==0.10.8
+requests==2.32.3
+streamlit-autorefresh==1.0.1
