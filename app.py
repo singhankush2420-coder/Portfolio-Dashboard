@@ -27,7 +27,6 @@ from scipy.stats import skew, kurtosis, norm, gaussian_kde
 try:
     from pyxirr import xirr
 except ImportError:
-    ## Fallback XIRR using numpy if pyxirr not installed
     def xirr(cashflows, dates):
         try:
             import numpy as _np
@@ -39,23 +38,14 @@ except ImportError:
             return _brentq(npv, -0.999, 100.0)
         except Exception:
             return float('nan')
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors as rl_colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm, mm
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak, Image
-)
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.pdfgen import canvas as rl_canvas
+## reportlab imported lazily inside create_institutional_pdf() to reduce startup memory
 try:
     from streamlit_autorefresh import st_autorefresh
     _HAS_AUTOREFRESH = True
 except ImportError:
     _HAS_AUTOREFRESH = False
     def st_autorefresh(*args, **kwargs):
-        pass  ## graceful no-op if package missing
+        pass
 
 ## ── Suppress matplotlib tight_layout warnings globally ─────────────────────
 import warnings as _warnings
@@ -2999,6 +2989,17 @@ def create_institutional_pdf(
     quote_text="",
     quote_author="",
 ):
+    ## ── Lazy imports — reportlab only loaded when PDF is generated ───────────
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors as rl_colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm, mm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+        HRFlowable, PageBreak, Image
+    )
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.pdfgen import canvas as rl_canvas
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.patches as _mpatches
     import warnings
