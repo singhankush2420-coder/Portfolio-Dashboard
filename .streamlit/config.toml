@@ -1,15 +1,14 @@
+[theme]
+base = "dark"
+backgroundColor = "#081018"
+secondaryBackgroundColor = "#0D1723"
+primaryColor = "#C8A951"
+textColor = "#F3F6FA"
+
 [server]
 headless = true
 enableCORS = false
-port = 8501
+enableXsrfProtection = false
 
-[theme]
-base = "dark"
-primaryColor = "#C8A951"
-backgroundColor = "#081018"
-secondaryBackgroundColor = "#0D1723"
-textColor = "#F3F6FA"
-font = "inter"
-
-[ui]
-hideSidebarNav = false
+[browser]
+gatherUsageStats = false
