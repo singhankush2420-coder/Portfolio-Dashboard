@@ -13,6 +13,13 @@ import io
 import openpyxl
 import matplotlib
 matplotlib.use("Agg")
+## Pre-build font cache at startup to prevent segfault on Streamlit Cloud
+## Known issue: matplotlib font scanning causes SIGSEGV in Docker containers
+try:
+    import matplotlib.font_manager as _fm
+    _fm._load_fontmanager(try_read_cache=False)
+except Exception:
+    pass
 import matplotlib.pyplot as plt
 import warnings
 import matplotlib.colors as mcolors
