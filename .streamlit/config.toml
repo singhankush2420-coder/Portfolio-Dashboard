@@ -5,10 +5,5 @@ secondaryBackgroundColor = "#0D1723"
 primaryColor = "#C8A951"
 textColor = "#F3F6FA"
 
-[server]
-headless = true
-enableCORS = false
-enableXsrfProtection = false
-
 [browser]
 gatherUsageStats = false
