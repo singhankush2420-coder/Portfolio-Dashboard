@@ -123,7 +123,7 @@ button[kind="secondary"] p { color: #C8A951 !important; }
 
     _bc = st.columns([1, 1.4, 1])
     with _bc[1]:
-        if st.button("Begin Analysis", key="welcome_ok", width='stretch'):
+        if st.button("Begin Analysis", key="welcome_ok", use_container_width=True):
             st.session_state["welcome_shown"] = True
             st.rerun()
     st.stop()
@@ -1245,7 +1245,7 @@ else:
             )
         with _c4:
             st.markdown("<div style='margin-top:22px'></div>", unsafe_allow_html=True)
-            _qadd   = st.button("Add", key="qa_add_btn", width='stretch')
+            _qadd   = st.button("Add", key="qa_add_btn", use_container_width=True)
         if _qadd:
             if _qprice <= 0:
                 st.error("Enter a valid buy price.")
@@ -4973,7 +4973,7 @@ try:
                     ("color:#3FB950" if v == "BSE" else "")),
                    subset=[c for c in ["Exchange","Cap"]
                            if c in holdings_df.columns]),
-            width='stretch'
+            use_container_width=True
         )
         st.markdown("<hr style='border:none;border-top:1px solid #21262D;margin:24px 0'>", unsafe_allow_html=True)
 
@@ -5077,7 +5077,7 @@ try:
             textinfo = "text",
         ))
         fig_tm.update_layout(height=500, margin=dict(t=30, l=10, r=10, b=10))
-        st.plotly_chart(fig_tm, width='stretch')
+        st.plotly_chart(fig_tm, use_container_width=True)
 
         has_notes = any(v is not None for v in ticker_data_notes.values())
         if has_notes:
@@ -5264,7 +5264,7 @@ try:
                 period_df.style
                 .format("{:+.2f}%")
                 .background_gradient(subset=["Excess (%)"], cmap="RdYlGn", vmin=-10, vmax=10),
-                width='stretch'
+                use_container_width=True
             )
 
             st.markdown("<p style='font-size:13px;font-weight:600;color:#C8A951;margin:16px 0 8px 0;border-bottom:1px solid #21262D;padding-bottom:6px'>Cumulative Performance — Base 100 (TWR)</p>", unsafe_allow_html=True)
@@ -5434,7 +5434,7 @@ try:
             })
             .background_gradient(subset=["Return Contrib."], cmap="RdYlGn", vmin=-0.05, vmax=0.05)
             .background_gradient(subset=["P&L Contrib. %"],  cmap="RdYlGn", vmin=-100,  vmax=100),
-            width='stretch'
+            use_container_width=True
         )
 
         ## Waterfall
@@ -5789,7 +5789,7 @@ try:
                 })
                 .map(color_diff, subset=["Difference"])
                 .background_gradient(subset=["Stock Return"], cmap="RdYlGn", vmin=-0.3, vmax=0.3),
-                width='stretch'
+                use_container_width=True
             )
 
             ## BHB table
@@ -5817,7 +5817,7 @@ try:
                 })
                 .background_gradient(subset=["Total Active Return"], cmap="RdYlGn", vmin=-0.05, vmax=0.05)
                 .background_gradient(subset=["Active Weight"],       cmap="RdYlGn", vmin=-0.3,  vmax=0.3),
-                width='stretch'
+                use_container_width=True
             )
 
             ## BHB summary metrics
@@ -6050,7 +6050,7 @@ border-left:4px solid #C8A951;border-radius:0 8px 8px 0;font-size:13px;color:#C9
                 "VaR Amount (Rs.)": "₹{:,.2f}",
                 "ES Amount (Rs.)":  "₹{:,.2f}",
             }),
-            width='stretch'
+            use_container_width=True
         )
 
         if len(risk_df) > 0:
@@ -6127,7 +6127,7 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
 
         st.dataframe(
             mkt_df.style.map(color_impact, subset=["Portfolio Impact (%)", "Loss (₹)"]),
-            width='stretch', hide_index=True
+            use_container_width=True, hide_index=True
         )
 
         ## Visual bar chart of market shocks
@@ -6191,7 +6191,7 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
                     lambda v: 'color:#F85149;font-weight:600' if (
                         isinstance(v, str) and v.startswith('-')) else '',
                     subset=["Portfolio Impact", "Loss (₹)"]
-                ), width='stretch', hide_index=True)
+                ), use_container_width=True, hide_index=True)
 
         ## ══════════════════════════════════════════════════════════════════════
         ## TYPE 3 — HISTORICAL SCENARIOS
@@ -6230,7 +6230,7 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:16px">
                     isinstance(v, str) and v.startswith('-')) else '',
                 subset=["Est. Portfolio Drop", "Est. Loss (₹)"]
             ),
-            width='stretch', hide_index=True
+            use_container_width=True, hide_index=True
         )
 
         ## Visual comparison chart
@@ -6308,7 +6308,7 @@ border-radius:0 8px 8px 0;font-size:12px;color:#C9D1D9;margin-bottom:12px">
                     isinstance(v, str) and v.startswith('-')) else '',
                 subset=["Direct Portfolio Impact", "Loss (₹)"]
             ),
-            width='stretch', hide_index=True
+            use_container_width=True, hide_index=True
         )
 
         ## Disclaimer
@@ -6343,7 +6343,7 @@ border-radius:8px;font-size:11px;color:#8B949E">
             corr_matrix.style
             .background_gradient(cmap=custom_cmap, vmin=-1, vmax=1)
             .format("{:.2f}"),
-            width='stretch'
+            use_container_width=True
         )
         st.markdown("<hr style='border:none;border-top:1px solid #21262D;margin:24px 0'>", unsafe_allow_html=True)
 
@@ -6708,7 +6708,7 @@ border-radius:8px;font-size:11px;color:#8B949E">
                 data=_pdf_buf,
                 file_name=f"portfolio_risk_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
-                width='stretch',
+                use_container_width=True,
             )
     except Exception as _pdf_err:
         with _pdf_placeholder:
