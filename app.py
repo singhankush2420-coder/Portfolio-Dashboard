@@ -4869,6 +4869,22 @@ try:
         "skewness":     skew(port_returns_bm),
         "kurtosis":     kurtosis(port_returns_bm, fisher=False),
     }
+    ## ── Pre-compute max_dd and recovery_date for PDF ─────────────────────────
+    ## plot_drawdown() computes these inside tab2 which renders AFTER this block
+    ## We need them here for session_state storage so PDF can access them
+    try:
+        _cumulative  = (1 + port_returns_bm).cumprod()
+        _rolling_max = _cumulative.cummax()
+        _drawdown    = (_cumulative - _rolling_max) / _rolling_max
+        max_dd       = float(_drawdown.min())
+        _max_dd_date = _drawdown.idxmin()
+        _post_max    = _drawdown[_drawdown.index > _max_dd_date]
+        _recovery    = _post_max[_post_max >= -0.001]
+        recovery_date = _recovery.index[0] if not _recovery.empty else None
+    except Exception:
+        max_dd        = np.nan
+        recovery_date = None
+
     ## ── Store ALL PDF variables in session_state ─────────────────────────────
     ## Every variable below is defined inside this try block
     ## When PDF button is clicked, Streamlit reruns — this block is skipped
