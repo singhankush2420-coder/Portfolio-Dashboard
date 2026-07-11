@@ -12,4 +12,4 @@ textColor = "#F3F6FA"
 font = "inter"
 
 [ui]
-hideSidebarNav = false
+hideSidebarNav = true
