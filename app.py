@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 import io
+import openpyxl
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -17,7 +18,12 @@ import warnings
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 from matplotlib.patches import Patch
-import plotly.graph_objects as go
+try:
+    import plotly.graph_objects as go
+    _HAS_PLOTLY = True
+except ImportError:
+    _HAS_PLOTLY = False
+    go = None
 from scipy.stats import skew, kurtosis, norm, gaussian_kde
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors as rl_colors
@@ -29,7 +35,12 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas as rl_canvas
-from streamlit_autorefresh import st_autorefresh
+try:
+    from streamlit_autorefresh import st_autorefresh
+    _HAS_AUTOREFRESH = True
+except ImportError:
+    _HAS_AUTOREFRESH = False
+    def st_autorefresh(*a,**k): pass
 
 ## ── Suppress matplotlib tight_layout warnings globally ─────────────────────
 import warnings as _warnings
@@ -528,7 +539,7 @@ refresh_minutes = st.sidebar.selectbox("Refresh Interval (Minutes)", [15, 20, 30
 ttl_seconds     = refresh_minutes * 60
 refresh_ms      = refresh_minutes * 60 * 1000
 
-if auto_refresh:
+if auto_refresh and _HAS_AUTOREFRESH:
     st_autorefresh(interval=refresh_ms, key="data_refresh")
 
 ## ─────────────────────────────────────────────────────────────────────────────
